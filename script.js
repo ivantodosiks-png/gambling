@@ -9,6 +9,7 @@ const ui = {
   btnHome: document.getElementById("btnHome"),
   btnRoulette: document.getElementById("btnRoulette"),
   btnMines: document.getElementById("btnMines"),
+  btnPlinko: document.getElementById("btnPlinko"),
   btnAdmin: document.getElementById("btnAdmin"),
   homeToRoulette: document.getElementById("homeToRoulette"),
   homeToMines: document.getElementById("homeToMines"),
@@ -16,6 +17,7 @@ const ui = {
     home: document.getElementById("homeView"),
     roulette: document.getElementById("rouletteView"),
     mines: document.getElementById("minesView"),
+    plinko: document.getElementById("plinkoView"),
     admin: document.getElementById("adminView")
   },
   ballTrack: document.getElementById("ballTrack"),
@@ -39,7 +41,16 @@ const ui = {
   adminLogoutBtn: document.getElementById("adminLogoutBtn"),
   adminAuthText: document.getElementById("adminAuthText"),
   adminControls: document.getElementById("adminControls"),
-  adminUsersList: document.getElementById("adminUsersList")
+  adminUsersList: document.getElementById("adminUsersList"),
+  plinkoBet: document.getElementById("plinkoBet"),
+  plinkoRows: document.getElementById("plinkoRows"),
+  plinkoRisk: document.getElementById("plinkoRisk"),
+  plinkoCount: document.getElementById("plinkoCount"),
+  plinkoDropOne: document.getElementById("plinkoDropOne"),
+  plinkoDropMany: document.getElementById("plinkoDropMany"),
+  plinkoBoard: document.getElementById("plinkoBoard"),
+  plinkoMultipliers: document.getElementById("plinkoMultipliers"),
+  plinkoResult: document.getElementById("plinkoResult")
 };
 
 const rouletteState = {
@@ -66,6 +77,13 @@ const minesState = {
   currentMultiplier: 1,
   roundActive: false
 };
+const plinkoState = {
+  rows: 16,
+  risk: "medium",
+  running: false,
+  queue: 0,
+  multipliers: []
+};
 let balance = 5000;
 let currentUserId = "";
 let usersStore = {};
@@ -77,6 +95,7 @@ function init() {
   initUserSession();
   bindEvents();
   buildRouletteTrack();
+  initPlinko();
   refreshBalance();
   populateMinesCountOptions();
   resetMinesGame();
@@ -86,6 +105,7 @@ function bindEvents() {
   ui.btnHome.addEventListener("click", () => switchView("home"));
   ui.btnRoulette.addEventListener("click", () => switchView("roulette"));
   ui.btnMines.addEventListener("click", () => switchView("mines"));
+  ui.btnPlinko.addEventListener("click", () => switchView("plinko"));
   ui.btnAdmin.addEventListener("click", () => switchView("admin"));
   ui.homeToRoulette.addEventListener("click", () => switchView("roulette"));
   ui.homeToMines.addEventListener("click", () => switchView("mines"));
@@ -106,15 +126,29 @@ function bindEvents() {
   ui.adminRefreshBtn.addEventListener("click", renderAdminUsers);
   ui.adminClearAllBtn.addEventListener("click", adminClearAllUsers);
   ui.adminLogoutBtn.addEventListener("click", adminLogout);
+  ui.plinkoRows.addEventListener("change", () => {
+    plinkoState.rows = Number(ui.plinkoRows.value);
+    rebuildPlinkoBoard();
+  });
+  ui.plinkoRisk.addEventListener("change", () => {
+    plinkoState.risk = ui.plinkoRisk.value;
+    rebuildPlinkoBoard();
+  });
+  ui.plinkoDropOne.addEventListener("click", () => queuePlinkoDrops(1));
+  ui.plinkoDropMany.addEventListener("click", () => {
+    const count = Math.min(100, Math.max(1, Number(ui.plinkoCount.value) || 1));
+    queuePlinkoDrops(count);
+  });
 }
 
 function switchView(view) {
   Object.values(ui.views).forEach((v) => v.classList.remove("active"));
   ui.views[view].classList.add("active");
-  [ui.btnHome, ui.btnRoulette, ui.btnMines, ui.btnAdmin].forEach((b) => b.classList.remove("active"));
+  [ui.btnHome, ui.btnRoulette, ui.btnMines, ui.btnPlinko, ui.btnAdmin].forEach((b) => b.classList.remove("active"));
   if (view === "home") ui.btnHome.classList.add("active");
   if (view === "roulette") ui.btnRoulette.classList.add("active");
   if (view === "mines") ui.btnMines.classList.add("active");
+  if (view === "plinko") ui.btnPlinko.classList.add("active");
   if (view === "admin") ui.btnAdmin.classList.add("active");
 
   if (view === "admin" && isAdminLoggedIn) {
@@ -422,6 +456,145 @@ function generateVisitorId() {
   const partA = Math.random().toString(36).slice(2, 8).toUpperCase();
   const partB = Date.now().toString(36).slice(-6).toUpperCase();
   return `U-${partA}-${partB}`;
+}
+
+function initPlinko() {
+  plinkoState.rows = Number(ui.plinkoRows.value);
+  plinkoState.risk = ui.plinkoRisk.value;
+  rebuildPlinkoBoard();
+}
+
+function rebuildPlinkoBoard() {
+  const rows = plinkoState.rows;
+  ui.plinkoBoard.innerHTML = "";
+  ui.plinkoBoard.style.setProperty("--rows", String(rows));
+  const baseWidth = 44 + rows * 26;
+  ui.plinkoBoard.style.width = `${baseWidth}px`;
+  plinkoState.multipliers = generatePlinkoMultipliers(rows, plinkoState.risk);
+
+  for (let row = 0; row < rows; row += 1) {
+    const count = row + 1;
+    const rowEl = document.createElement("div");
+    rowEl.className = "plinko-row";
+    rowEl.style.width = `${count * 24}px`;
+    for (let col = 0; col < count; col += 1) {
+      const peg = document.createElement("span");
+      peg.className = "plinko-peg";
+      rowEl.appendChild(peg);
+    }
+    ui.plinkoBoard.appendChild(rowEl);
+  }
+  renderPlinkoMultipliers();
+}
+
+function generatePlinkoMultipliers(rows, risk) {
+  const slots = rows + 1;
+  const center = rows / 2;
+  const list = [];
+  const riskScale = risk === "high" ? 2.2 : risk === "medium" ? 1.55 : 1.1;
+  const minValue = risk === "high" ? 0.2 : risk === "medium" ? 0.4 : 0.6;
+
+  for (let i = 0; i < slots; i += 1) {
+    const distance = Math.abs(i - center) / Math.max(1, center);
+    const curved = Math.pow(distance, riskScale);
+    const raw = minValue + curved * (rows >= 16 ? 80 : rows >= 12 ? 30 : 12);
+    list.push(formatMultiplier(raw));
+  }
+
+  if (slots > 2) {
+    list[Math.floor(slots / 2)] = formatMultiplier(minValue);
+  }
+  return list;
+}
+
+function formatMultiplier(value) {
+  if (value >= 100) return 100;
+  if (value >= 10) return Math.round(value);
+  return Math.round(value * 10) / 10;
+}
+
+function renderPlinkoMultipliers() {
+  const max = Math.max(...plinkoState.multipliers);
+  ui.plinkoMultipliers.innerHTML = plinkoState.multipliers.map((mult) => {
+    const cls = mult >= max * 0.7 ? "high" : mult <= 1 ? "low" : "mid";
+    return `<span class="plinko-mult ${cls}">${mult}x</span>`;
+  }).join("");
+  ui.plinkoMultipliers.style.gridTemplateColumns = `repeat(${plinkoState.multipliers.length}, 1fr)`;
+}
+
+function queuePlinkoDrops(count) {
+  plinkoState.queue += count;
+  if (!plinkoState.running) {
+    runPlinkoQueue();
+  }
+}
+
+async function runPlinkoQueue() {
+  if (plinkoState.running) return;
+  plinkoState.running = true;
+  togglePlinkoButtons(true);
+
+  while (plinkoState.queue > 0) {
+    const bet = Math.max(10, Number(ui.plinkoBet.value) || 0);
+    if (bet > balance) {
+      ui.plinkoResult.textContent = "Stopped: not enough balance for next ball.";
+      break;
+    }
+    plinkoState.queue -= 1;
+    balance -= bet;
+    refreshBalance();
+    const slotIndex = await animatePlinkoBall();
+    const multiplier = plinkoState.multipliers[slotIndex] || 0;
+    const win = Math.floor(bet * multiplier);
+    balance += win;
+    refreshBalance();
+    ui.plinkoResult.textContent = `Ball landed on ${multiplier}x | Bet: ${bet} | Win: ${win} | Balance: ${balance}`;
+  }
+
+  plinkoState.queue = 0;
+  plinkoState.running = false;
+  togglePlinkoButtons(false);
+}
+
+function togglePlinkoButtons(disabled) {
+  ui.plinkoDropOne.disabled = disabled;
+  ui.plinkoDropMany.disabled = disabled;
+}
+
+function animatePlinkoBall() {
+  return new Promise((resolve) => {
+    const rows = plinkoState.rows;
+    let rightSteps = 0;
+    const boardRect = ui.plinkoBoard.getBoundingClientRect();
+    const path = [];
+
+    for (let row = 0; row <= rows; row += 1) {
+      if (row > 0 && Math.random() >= 0.5) rightSteps += 1;
+      const x = ((rightSteps - row / 2) * 24) + boardRect.width / 2;
+      const y = 10 + row * 24;
+      path.push({ x, y });
+    }
+
+    const ball = document.createElement("span");
+    ball.className = "plinko-ball";
+    ui.plinkoBoard.appendChild(ball);
+
+    let step = 0;
+    function moveNext() {
+      const point = path[step];
+      ball.style.transform = `translate(${point.x - 7}px, ${point.y - 7}px)`;
+      step += 1;
+      if (step < path.length) {
+        window.setTimeout(moveNext, 75);
+      } else {
+        window.setTimeout(() => {
+          ball.remove();
+          resolve(rightSteps);
+        }, 90);
+      }
+    }
+    moveNext();
+  });
 }
 
 function adminLogin() {
