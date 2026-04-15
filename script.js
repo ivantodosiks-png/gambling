@@ -1,6 +1,7 @@
 const multipliers = ["1.2x", "1.5x", "2x", "5x", "10x", "100x"];
 const START_BALANCE = 5000;
 const USERS_STORAGE_KEY = "gamblingUsersV1";
+const CURRENT_USER_ID_KEY = "gamblingCurrentUserIdV1";
 const ADMIN_NAME = "Ivan";
 const ADMIN_PASSWORD = "924015";
 
@@ -34,6 +35,7 @@ const ui = {
   adminPassword: document.getElementById("adminPassword"),
   adminLoginBtn: document.getElementById("adminLoginBtn"),
   adminRefreshBtn: document.getElementById("adminRefreshBtn"),
+  adminClearAllBtn: document.getElementById("adminClearAllBtn"),
   adminLogoutBtn: document.getElementById("adminLogoutBtn"),
   adminAuthText: document.getElementById("adminAuthText"),
   adminControls: document.getElementById("adminControls"),
@@ -102,6 +104,7 @@ function bindEvents() {
   ui.resetMines.addEventListener("click", resetMinesGame);
   ui.adminLoginBtn.addEventListener("click", adminLogin);
   ui.adminRefreshBtn.addEventListener("click", renderAdminUsers);
+  ui.adminClearAllBtn.addEventListener("click", adminClearAllUsers);
   ui.adminLogoutBtn.addEventListener("click", adminLogout);
 }
 
@@ -377,14 +380,24 @@ function randomInt(min, max) {
 
 function initUserSession() {
   usersStore = loadUsersStore();
-  currentUserId = generateVisitorId();
-  usersStore[currentUserId] = {
-    id: currentUserId,
-    balance: START_BALANCE,
-    createdAt: Date.now(),
-    lastSeenAt: Date.now()
-  };
-  balance = START_BALANCE;
+  const savedUserId = localStorage.getItem(CURRENT_USER_ID_KEY);
+  currentUserId = savedUserId || generateVisitorId();
+  const existingUser = usersStore[currentUserId];
+
+  if (existingUser) {
+    balance = Math.max(0, Number(existingUser.balance) || 0);
+    existingUser.lastSeenAt = Date.now();
+  } else {
+    usersStore[currentUserId] = {
+      id: currentUserId,
+      balance: START_BALANCE,
+      createdAt: Date.now(),
+      lastSeenAt: Date.now()
+    };
+    balance = START_BALANCE;
+  }
+
+  localStorage.setItem(CURRENT_USER_ID_KEY, currentUserId);
   ui.playerIdValue.textContent = currentUserId;
   saveUsersStore();
 }
@@ -429,6 +442,20 @@ function adminLogout() {
   ui.adminControls.classList.add("hidden");
   ui.adminAuthText.textContent = "Login required.";
   ui.adminPassword.value = "";
+}
+
+function adminClearAllUsers() {
+  if (!isAdminLoggedIn) return;
+  usersStore = {};
+  usersStore[currentUserId] = {
+    id: currentUserId,
+    balance: balance,
+    createdAt: Date.now(),
+    lastSeenAt: Date.now()
+  };
+  saveUsersStore();
+  ui.adminAuthText.textContent = "All users deleted. Current user kept.";
+  renderAdminUsers();
 }
 
 function renderAdminUsers() {
