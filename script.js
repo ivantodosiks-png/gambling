@@ -46,10 +46,14 @@ const ui = {
   plinkoRows: document.getElementById("plinkoRows"),
   plinkoRisk: document.getElementById("plinkoRisk"),
   plinkoCount: document.getElementById("plinkoCount"),
+  plinkoSound: document.getElementById("plinkoSound"),
   plinkoDropOne: document.getElementById("plinkoDropOne"),
   plinkoDropMany: document.getElementById("plinkoDropMany"),
   plinkoBoard: document.getElementById("plinkoBoard"),
+  plinkoCanvas: document.getElementById("plinkoCanvas"),
+  plinkoWinFx: document.getElementById("plinkoWinFx"),
   plinkoMultipliers: document.getElementById("plinkoMultipliers"),
+  plinkoStats: document.getElementById("plinkoStats"),
   plinkoResult: document.getElementById("plinkoResult")
 };
 
@@ -80,9 +84,29 @@ const minesState = {
 const plinkoState = {
   rows: 16,
   risk: "medium",
-  running: false,
+  multipliers: [],
+  pegs: [],
+  balls: [],
   queue: 0,
-  multipliers: []
+  lastDropAt: 0,
+  dropIntervalMs: 130,
+  raf: 0,
+  running: false,
+  pendingBets: 0,
+  width: 0,
+  height: 0,
+  topY: 52,
+  slotHeight: 48,
+  pegRadius: 5,
+  ballRadius: 7,
+  gravity: 1180,
+  wallBounce: 0.72,
+  pegBounce: 0.78,
+  friction: 0.995,
+  ctx: null,
+  soundEnabled: true,
+  audioCtx: null,
+  resizeObserver: null
 };
 let balance = 5000;
 let currentUserId = "";
@@ -133,6 +157,9 @@ function bindEvents() {
   ui.plinkoRisk.addEventListener("change", () => {
     plinkoState.risk = ui.plinkoRisk.value;
     rebuildPlinkoBoard();
+  });
+  ui.plinkoSound.addEventListener("change", () => {
+    plinkoState.soundEnabled = ui.plinkoSound.checked;
   });
   ui.plinkoDropOne.addEventListener("click", () => queuePlinkoDrops(1));
   ui.plinkoDropMany.addEventListener("click", () => {
@@ -461,50 +488,43 @@ function generateVisitorId() {
 function initPlinko() {
   plinkoState.rows = Number(ui.plinkoRows.value);
   plinkoState.risk = ui.plinkoRisk.value;
+  plinkoState.soundEnabled = ui.plinkoSound.checked;
+  plinkoState.ctx = ui.plinkoCanvas.getContext("2d");
+  setupPlinkoResize();
   rebuildPlinkoBoard();
+  startPlinkoLoop();
 }
 
 function rebuildPlinkoBoard() {
-  const rows = plinkoState.rows;
-  ui.plinkoBoard.innerHTML = "";
-  ui.plinkoBoard.style.setProperty("--rows", String(rows));
-  const baseWidth = 44 + rows * 26;
-  ui.plinkoBoard.style.width = `${baseWidth}px`;
-  plinkoState.multipliers = generatePlinkoMultipliers(rows, plinkoState.risk);
-
-  for (let row = 0; row < rows; row += 1) {
-    const count = row + 1;
-    const rowEl = document.createElement("div");
-    rowEl.className = "plinko-row";
-    rowEl.style.width = `${count * 24}px`;
-    for (let col = 0; col < count; col += 1) {
-      const peg = document.createElement("span");
-      peg.className = "plinko-peg";
-      rowEl.appendChild(peg);
-    }
-    ui.plinkoBoard.appendChild(rowEl);
-  }
+  updatePlinkoCanvasSize();
+  plinkoState.pegs = buildPegLayout(plinkoState.rows, plinkoState.width, plinkoState.height, plinkoState.topY, plinkoState.slotHeight);
+  plinkoState.multipliers = generatePlinkoMultipliers(plinkoState.rows, plinkoState.risk);
+  plinkoState.balls = [];
+  plinkoState.queue = 0;
+  plinkoState.pendingBets = 0;
+  togglePlinkoButtons(false);
   renderPlinkoMultipliers();
+  ui.plinkoStats.textContent = `${plinkoState.rows} rows | ${plinkoState.risk} risk`;
 }
 
 function generatePlinkoMultipliers(rows, risk) {
-  const slots = rows + 1;
-  const center = rows / 2;
-  const list = [];
-  const riskScale = risk === "high" ? 2.2 : risk === "medium" ? 1.55 : 1.1;
-  const minValue = risk === "high" ? 0.2 : risk === "medium" ? 0.4 : 0.6;
-
-  for (let i = 0; i < slots; i += 1) {
-    const distance = Math.abs(i - center) / Math.max(1, center);
-    const curved = Math.pow(distance, riskScale);
-    const raw = minValue + curved * (rows >= 16 ? 80 : rows >= 12 ? 30 : 12);
-    list.push(formatMultiplier(raw));
-  }
-
-  if (slots > 2) {
-    list[Math.floor(slots / 2)] = formatMultiplier(minValue);
-  }
-  return list;
+  const low = {
+    8: [3.5, 2, 1.2, 1, 0.8, 1, 1.2, 2, 3.5],
+    12: [6, 3, 1.7, 1.2, 1, 0.7, 0.6, 0.7, 1, 1.2, 1.7, 3, 6],
+    16: [8, 4.5, 2.4, 1.5, 1.2, 1, 0.8, 0.6, 0.5, 0.6, 0.8, 1, 1.2, 1.5, 2.4, 4.5, 8]
+  };
+  const medium = {
+    8: [7, 3, 1.4, 1, 0.5, 1, 1.4, 3, 7],
+    12: [12, 5, 2.4, 1.4, 1, 0.5, 0.3, 0.5, 1, 1.4, 2.4, 5, 12],
+    16: [20, 9, 4, 2, 1.4, 1, 0.7, 0.4, 0.2, 0.4, 0.7, 1, 1.4, 2, 4, 9, 20]
+  };
+  const high = {
+    8: [16, 7, 2, 1, 0.2, 1, 2, 7, 16],
+    12: [40, 14, 5, 2, 1, 0.4, 0.2, 0.4, 1, 2, 5, 14, 40],
+    16: [100, 26, 9, 4, 2, 1, 0.5, 0.3, 0.2, 0.3, 0.5, 1, 2, 4, 9, 26, 100]
+  };
+  const map = risk === "high" ? high : risk === "medium" ? medium : low;
+  return map[rows].slice();
 }
 
 function formatMultiplier(value) {
@@ -523,78 +543,297 @@ function renderPlinkoMultipliers() {
 }
 
 function queuePlinkoDrops(count) {
+  const bet = Math.max(10, Number(ui.plinkoBet.value) || 0);
+  if (bet * count > balance) {
+    ui.plinkoResult.textContent = "Not enough balance for selected amount of balls.";
+    return;
+  }
   plinkoState.queue += count;
-  if (!plinkoState.running) {
-    runPlinkoQueue();
-  }
-}
-
-async function runPlinkoQueue() {
-  if (plinkoState.running) return;
-  plinkoState.running = true;
-  togglePlinkoButtons(true);
-
-  while (plinkoState.queue > 0) {
-    const bet = Math.max(10, Number(ui.plinkoBet.value) || 0);
-    if (bet > balance) {
-      ui.plinkoResult.textContent = "Stopped: not enough balance for next ball.";
-      break;
-    }
-    plinkoState.queue -= 1;
-    balance -= bet;
-    refreshBalance();
-    const slotIndex = await animatePlinkoBall();
-    const multiplier = plinkoState.multipliers[slotIndex] || 0;
-    const win = Math.floor(bet * multiplier);
-    balance += win;
-    refreshBalance();
-    ui.plinkoResult.textContent = `Ball landed on ${multiplier}x | Bet: ${bet} | Win: ${win} | Balance: ${balance}`;
-  }
-
-  plinkoState.queue = 0;
-  plinkoState.running = false;
-  togglePlinkoButtons(false);
+  plinkoState.pendingBets += count;
+  ui.plinkoStats.textContent = `Queued: ${plinkoState.queue} | In air: ${plinkoState.balls.length}`;
 }
 
 function togglePlinkoButtons(disabled) {
   ui.plinkoDropOne.disabled = disabled;
   ui.plinkoDropMany.disabled = disabled;
+  ui.plinkoRows.disabled = disabled;
+  ui.plinkoRisk.disabled = disabled;
+  ui.plinkoBet.disabled = disabled;
 }
 
-function animatePlinkoBall() {
-  return new Promise((resolve) => {
-    const rows = plinkoState.rows;
-    let rightSteps = 0;
-    const boardRect = ui.plinkoBoard.getBoundingClientRect();
-    const path = [];
+function setupPlinkoResize() {
+  if (typeof ResizeObserver === "undefined") {
+    window.addEventListener("resize", rebuildPlinkoBoard);
+    return;
+  }
+  if (plinkoState.resizeObserver) {
+    plinkoState.resizeObserver.disconnect();
+  }
+  plinkoState.resizeObserver = new ResizeObserver(() => {
+    rebuildPlinkoBoard();
+  });
+  plinkoState.resizeObserver.observe(ui.plinkoBoard);
+}
 
-    for (let row = 0; row <= rows; row += 1) {
-      if (row > 0 && Math.random() >= 0.5) rightSteps += 1;
-      const x = ((rightSteps - row / 2) * 24) + boardRect.width / 2;
-      const y = 10 + row * 24;
-      path.push({ x, y });
+function updatePlinkoCanvasSize() {
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const rect = ui.plinkoBoard.getBoundingClientRect();
+  plinkoState.width = Math.max(320, rect.width);
+  plinkoState.height = Math.max(300, rect.height);
+  ui.plinkoCanvas.width = Math.floor(plinkoState.width * dpr);
+  ui.plinkoCanvas.height = Math.floor(plinkoState.height * dpr);
+  if (plinkoState.ctx) {
+    plinkoState.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+}
+
+function buildPegLayout(rows, width, height, topY, slotHeight) {
+  const pegs = [];
+  const playableHeight = height - slotHeight - topY - 10;
+  const rowGap = playableHeight / rows;
+  const usableWidth = Math.min(width - 36, rows * 30);
+  const centerX = width / 2;
+
+  for (let row = 0; row < rows; row += 1) {
+    const cols = row + 1;
+    const y = topY + rowGap * (row + 0.5);
+    const rowWidth = (cols - 1) * (usableWidth / rows);
+    const startX = centerX - rowWidth / 2;
+    for (let col = 0; col < cols; col += 1) {
+      pegs.push({
+        x: startX + col * (usableWidth / rows),
+        y
+      });
+    }
+  }
+  return pegs;
+}
+
+function startPlinkoLoop() {
+  if (plinkoState.running) return;
+  plinkoState.running = true;
+  let last = performance.now();
+
+  function frame(now) {
+    const dt = Math.min(0.033, (now - last) / 1000);
+    last = now;
+    processPlinkoQueue(now);
+    stepPlinkoPhysics(dt);
+    drawPlinkoBoard();
+    plinkoState.raf = requestAnimationFrame(frame);
+  }
+
+  plinkoState.raf = requestAnimationFrame(frame);
+}
+
+function processPlinkoQueue(now) {
+  if (plinkoState.queue <= 0) {
+    if (plinkoState.balls.length === 0) {
+      togglePlinkoButtons(false);
+    }
+    return;
+  }
+  togglePlinkoButtons(true);
+  if (now - plinkoState.lastDropAt < plinkoState.dropIntervalMs) return;
+
+  const bet = Math.max(10, Number(ui.plinkoBet.value) || 0);
+  if (bet > balance) {
+    plinkoState.queue = 0;
+    plinkoState.pendingBets = 0;
+    ui.plinkoResult.textContent = "Stopped: not enough balance for next ball.";
+    return;
+  }
+
+  plinkoState.queue -= 1;
+  plinkoState.pendingBets = Math.max(0, plinkoState.pendingBets - 1);
+  plinkoState.lastDropAt = now;
+  spawnPlinkoBall(bet);
+  ui.plinkoStats.textContent = `Queued: ${plinkoState.queue} | In air: ${plinkoState.balls.length}`;
+}
+
+function spawnPlinkoBall(bet) {
+  balance -= bet;
+  refreshBalance();
+  plinkoState.balls.push({
+    x: plinkoState.width / 2 + (Math.random() - 0.5) * 2.2,
+    y: 22,
+    vx: (Math.random() - 0.5) * 14,
+    vy: 0,
+    r: plinkoState.ballRadius,
+    bet,
+    settled: false
+  });
+}
+
+function stepPlinkoPhysics(dt) {
+  if (plinkoState.balls.length === 0) return;
+  const floorY = plinkoState.height - plinkoState.slotHeight - 2;
+
+  for (let i = plinkoState.balls.length - 1; i >= 0; i -= 1) {
+    const ball = plinkoState.balls[i];
+    if (ball.settled) continue;
+
+    ball.vy += plinkoState.gravity * dt;
+    ball.vx *= plinkoState.friction;
+    ball.x += ball.vx * dt;
+    ball.y += ball.vy * dt;
+
+    if (ball.x - ball.r < 0) {
+      ball.x = ball.r;
+      ball.vx = Math.abs(ball.vx) * plinkoState.wallBounce;
+    } else if (ball.x + ball.r > plinkoState.width) {
+      ball.x = plinkoState.width - ball.r;
+      ball.vx = -Math.abs(ball.vx) * plinkoState.wallBounce;
     }
 
-    const ball = document.createElement("span");
-    ball.className = "plinko-ball";
-    ui.plinkoBoard.appendChild(ball);
+    for (let p = 0; p < plinkoState.pegs.length; p += 1) {
+      const peg = plinkoState.pegs[p];
+      const dx = ball.x - peg.x;
+      const dy = ball.y - peg.y;
+      const minDist = ball.r + plinkoState.pegRadius;
+      const distSq = dx * dx + dy * dy;
+      if (distSq > 0 && distSq < minDist * minDist) {
+        const dist = Math.sqrt(distSq);
+        const nx = dx / dist;
+        const ny = dy / dist;
+        const overlap = minDist - dist;
+        ball.x += nx * overlap;
+        ball.y += ny * overlap;
 
-    let step = 0;
-    function moveNext() {
-      const point = path[step];
-      ball.style.transform = `translate(${point.x - 7}px, ${point.y - 7}px)`;
-      step += 1;
-      if (step < path.length) {
-        window.setTimeout(moveNext, 75);
-      } else {
-        window.setTimeout(() => {
-          ball.remove();
-          resolve(rightSteps);
-        }, 90);
+        const dot = ball.vx * nx + ball.vy * ny;
+        if (dot < 0) {
+          ball.vx -= (1 + plinkoState.pegBounce) * dot * nx;
+          ball.vy -= (1 + plinkoState.pegBounce) * dot * ny;
+          ball.vx += (Math.random() - 0.5) * 40;
+          playPlinkoTone(520 + Math.random() * 120, 0.016, 0.02);
+        }
       }
     }
-    moveNext();
-  });
+
+    if (ball.y + ball.r >= floorY) {
+      settlePlinkoBall(i);
+    }
+  }
+}
+
+function settlePlinkoBall(ballIndex) {
+  const ball = plinkoState.balls[ballIndex];
+  const slotCount = plinkoState.multipliers.length;
+  const slotWidth = plinkoState.width / slotCount;
+  const slotIndex = Math.max(0, Math.min(slotCount - 1, Math.floor(ball.x / slotWidth)));
+  const multiplier = plinkoState.multipliers[slotIndex];
+  const win = Math.floor(ball.bet * multiplier);
+  balance += win;
+  refreshBalance();
+  animateSlotHit(slotIndex, multiplier, win);
+  ui.plinkoResult.textContent = `Landed on ${multiplier}x | Bet: ${ball.bet} | Win: ${win}`;
+  ui.plinkoStats.textContent = `Queued: ${plinkoState.queue} | In air: ${Math.max(0, plinkoState.balls.length - 1)}`;
+  plinkoState.balls.splice(ballIndex, 1);
+  playPlinkoTone(multiplier >= 5 ? 800 : 620, 0.08, 0.04);
+}
+
+function drawPlinkoBoard() {
+  const ctx = plinkoState.ctx;
+  if (!ctx) return;
+  ctx.clearRect(0, 0, plinkoState.width, plinkoState.height);
+  drawPlinkoBackground(ctx);
+  drawPlinkoPegs(ctx);
+  drawPlinkoSlots(ctx);
+  drawPlinkoBalls(ctx);
+}
+
+function drawPlinkoBackground(ctx) {
+  const grad = ctx.createLinearGradient(0, 0, 0, plinkoState.height);
+  grad.addColorStop(0, "rgba(16, 50, 80, 0.35)");
+  grad.addColorStop(1, "rgba(8, 20, 32, 0.45)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, plinkoState.width, plinkoState.height);
+}
+
+function drawPlinkoPegs(ctx) {
+  for (const peg of plinkoState.pegs) {
+    ctx.beginPath();
+    ctx.arc(peg.x, peg.y, plinkoState.pegRadius, 0, Math.PI * 2);
+    ctx.fillStyle = "#e6f2ff";
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = "rgba(170, 220, 255, 0.8)";
+    ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+}
+
+function drawPlinkoSlots(ctx) {
+  const slotCount = plinkoState.multipliers.length;
+  const slotWidth = plinkoState.width / slotCount;
+  const top = plinkoState.height - plinkoState.slotHeight;
+  for (let i = 0; i < slotCount; i += 1) {
+    const mult = plinkoState.multipliers[i];
+    const isHigh = mult >= Math.max(...plinkoState.multipliers) * 0.7;
+    const isLow = mult <= 1;
+    ctx.fillStyle = isHigh ? "#d82155" : isLow ? "#d38f11" : "#d46a27";
+    ctx.fillRect(i * slotWidth + 1, top, slotWidth - 2, plinkoState.slotHeight);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 12px Segoe UI";
+    ctx.textAlign = "center";
+    ctx.fillText(`${mult}x`, i * slotWidth + slotWidth / 2, top + 28);
+  }
+}
+
+function drawPlinkoBalls(ctx) {
+  for (const ball of plinkoState.balls) {
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+    const glow = ctx.createRadialGradient(ball.x - 2, ball.y - 2, 1, ball.x, ball.y, ball.r);
+    glow.addColorStop(0, "#ffffff");
+    glow.addColorStop(1, "#d7ebff");
+    ctx.fillStyle = glow;
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = "rgba(255, 255, 255, 0.85)";
+    ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+}
+
+function animateSlotHit(slotIndex, multiplier, win) {
+  const target = ui.plinkoMultipliers.children[slotIndex];
+  if (target) {
+    target.classList.remove("hit");
+    void target.offsetWidth;
+    target.classList.add("hit");
+  }
+
+  const pop = document.createElement("span");
+  pop.className = "win-pop";
+  pop.style.left = `${(slotIndex + 0.5) * (ui.plinkoBoard.clientWidth / plinkoState.multipliers.length)}px`;
+  pop.style.top = `${ui.plinkoBoard.clientHeight - plinkoState.slotHeight - 20}px`;
+  pop.textContent = `+${win} (${multiplier}x)`;
+  ui.plinkoWinFx.appendChild(pop);
+  window.setTimeout(() => pop.remove(), 1000);
+}
+
+function playPlinkoTone(freq, duration, volume) {
+  if (!plinkoState.soundEnabled) return;
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) return;
+  if (!plinkoState.audioCtx) {
+    plinkoState.audioCtx = new AudioCtx();
+  }
+  const ctx = plinkoState.audioCtx;
+  if (ctx.state === "suspended") {
+    ctx.resume();
+  }
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = "triangle";
+  osc.frequency.value = freq;
+  gain.gain.value = volume;
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  const now = ctx.currentTime;
+  gain.gain.setValueAtTime(volume, now);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+  osc.start(now);
+  osc.stop(now + duration);
 }
 
 function adminLogin() {

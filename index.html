@@ -111,11 +111,19 @@
             </select>
             <label for="plinkoCount">Balls to drop:</label>
             <input id="plinkoCount" type="number" min="1" max="100" step="1" value="1">
+            <label class="sound-toggle" for="plinkoSound">
+              <input id="plinkoSound" type="checkbox" checked>
+              Sound effects
+            </label>
             <button id="plinkoDropOne" class="main-btn">Drop 1 Ball</button>
             <button id="plinkoDropMany" class="main-btn alt">Drop Multiple</button>
+            <p id="plinkoStats" class="muted">Ready to drop.</p>
           </div>
           <div class="plinko-board-wrap">
-            <div id="plinkoBoard" class="plinko-board"></div>
+            <div id="plinkoBoard" class="plinko-board">
+              <canvas id="plinkoCanvas" class="plinko-canvas"></canvas>
+              <div id="plinkoWinFx" class="plinko-win-fx"></div>
+            </div>
             <div id="plinkoMultipliers" class="plinko-multipliers"></div>
           </div>
         </div>
