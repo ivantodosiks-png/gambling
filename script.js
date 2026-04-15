@@ -99,6 +99,11 @@ const plinkoState = {
   slotHeight: 48,
   pegRadius: 5,
   ballRadius: 7,
+  pyramidLeft: 40,
+  pyramidRight: 360,
+  pyramidTopY: 42,
+  pyramidBaseY: 360,
+  rowGap: 20,
   gravity: 1180,
   wallBounce: 0.72,
   pegBounce: 0.78,
@@ -535,11 +540,15 @@ function formatMultiplier(value) {
 
 function renderPlinkoMultipliers() {
   const max = Math.max(...plinkoState.multipliers);
+  const slotArea = getSlotArea();
   ui.plinkoMultipliers.innerHTML = plinkoState.multipliers.map((mult) => {
     const cls = mult >= max * 0.7 ? "high" : mult <= 1 ? "low" : "mid";
     return `<span class="plinko-mult ${cls}">${mult}x</span>`;
   }).join("");
   ui.plinkoMultipliers.style.gridTemplateColumns = `repeat(${plinkoState.multipliers.length}, 1fr)`;
+  ui.plinkoMultipliers.style.left = `${slotArea.left}px`;
+  ui.plinkoMultipliers.style.width = `${slotArea.width}px`;
+  ui.plinkoMultipliers.style.right = "auto";
 }
 
 function queuePlinkoDrops(count) {
@@ -591,8 +600,13 @@ function buildPegLayout(rows, width, height, topY, slotHeight) {
   const pegs = [];
   const playableHeight = height - slotHeight - topY - 10;
   const rowGap = playableHeight / rows;
-  const usableWidth = Math.min(width - 36, rows * 30);
+  const usableWidth = Math.min(width - 64, rows * 30);
   const centerX = width / 2;
+  plinkoState.rowGap = rowGap;
+  plinkoState.pyramidTopY = Math.max(26, topY - rowGap * 0.3);
+  plinkoState.pyramidBaseY = height - slotHeight - 4;
+  plinkoState.pyramidLeft = centerX - usableWidth / 2 - 12;
+  plinkoState.pyramidRight = centerX + usableWidth / 2 + 12;
 
   for (let row = 0; row < rows; row += 1) {
     const cols = row + 1;
@@ -678,13 +692,7 @@ function stepPlinkoPhysics(dt) {
     ball.x += ball.vx * dt;
     ball.y += ball.vy * dt;
 
-    if (ball.x - ball.r < 0) {
-      ball.x = ball.r;
-      ball.vx = Math.abs(ball.vx) * plinkoState.wallBounce;
-    } else if (ball.x + ball.r > plinkoState.width) {
-      ball.x = plinkoState.width - ball.r;
-      ball.vx = -Math.abs(ball.vx) * plinkoState.wallBounce;
-    }
+    confineBallInsidePyramid(ball);
 
     for (let p = 0; p < plinkoState.pegs.length; p += 1) {
       const peg = plinkoState.pegs[p];
@@ -718,9 +726,11 @@ function stepPlinkoPhysics(dt) {
 
 function settlePlinkoBall(ballIndex) {
   const ball = plinkoState.balls[ballIndex];
+  const slotArea = getSlotArea();
   const slotCount = plinkoState.multipliers.length;
-  const slotWidth = plinkoState.width / slotCount;
-  const slotIndex = Math.max(0, Math.min(slotCount - 1, Math.floor(ball.x / slotWidth)));
+  const slotWidth = slotArea.width / slotCount;
+  const relativeX = ball.x - slotArea.left;
+  const slotIndex = Math.max(0, Math.min(slotCount - 1, Math.floor(relativeX / slotWidth)));
   const multiplier = plinkoState.multipliers[slotIndex];
   const win = Math.floor(ball.bet * multiplier);
   balance += win;
@@ -748,6 +758,16 @@ function drawPlinkoBackground(ctx) {
   grad.addColorStop(1, "rgba(8, 20, 32, 0.45)");
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, plinkoState.width, plinkoState.height);
+
+  ctx.beginPath();
+  const centerX = plinkoState.width / 2;
+  ctx.moveTo(centerX, plinkoState.pyramidTopY);
+  ctx.lineTo(plinkoState.pyramidLeft, plinkoState.pyramidBaseY);
+  ctx.lineTo(plinkoState.pyramidRight, plinkoState.pyramidBaseY);
+  ctx.closePath();
+  ctx.strokeStyle = "rgba(96, 171, 228, 0.3)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
 }
 
 function drawPlinkoPegs(ctx) {
@@ -764,18 +784,20 @@ function drawPlinkoPegs(ctx) {
 
 function drawPlinkoSlots(ctx) {
   const slotCount = plinkoState.multipliers.length;
-  const slotWidth = plinkoState.width / slotCount;
+  const slotArea = getSlotArea();
+  const slotWidth = slotArea.width / slotCount;
   const top = plinkoState.height - plinkoState.slotHeight;
   for (let i = 0; i < slotCount; i += 1) {
     const mult = plinkoState.multipliers[i];
     const isHigh = mult >= Math.max(...plinkoState.multipliers) * 0.7;
     const isLow = mult <= 1;
     ctx.fillStyle = isHigh ? "#d82155" : isLow ? "#d38f11" : "#d46a27";
-    ctx.fillRect(i * slotWidth + 1, top, slotWidth - 2, plinkoState.slotHeight);
+    const x = slotArea.left + i * slotWidth;
+    ctx.fillRect(x + 1, top, slotWidth - 2, plinkoState.slotHeight);
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 12px Segoe UI";
     ctx.textAlign = "center";
-    ctx.fillText(`${mult}x`, i * slotWidth + slotWidth / 2, top + 28);
+    ctx.fillText(`${mult}x`, x + slotWidth / 2, top + 28);
   }
 }
 
@@ -804,7 +826,9 @@ function animateSlotHit(slotIndex, multiplier, win) {
 
   const pop = document.createElement("span");
   pop.className = "win-pop";
-  pop.style.left = `${(slotIndex + 0.5) * (ui.plinkoBoard.clientWidth / plinkoState.multipliers.length)}px`;
+  const slotArea = getSlotArea();
+  const slotWidth = slotArea.width / plinkoState.multipliers.length;
+  pop.style.left = `${slotArea.left + (slotIndex + 0.5) * slotWidth}px`;
   pop.style.top = `${ui.plinkoBoard.clientHeight - plinkoState.slotHeight - 20}px`;
   pop.textContent = `+${win} (${multiplier}x)`;
   ui.plinkoWinFx.appendChild(pop);
@@ -834,6 +858,38 @@ function playPlinkoTone(freq, duration, volume) {
   gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
   osc.start(now);
   osc.stop(now + duration);
+}
+
+function confineBallInsidePyramid(ball) {
+  const bounds = getPyramidBoundsAtY(ball.y);
+  if (ball.x - ball.r < bounds.left) {
+    ball.x = bounds.left + ball.r;
+    ball.vx = Math.abs(ball.vx) * plinkoState.wallBounce;
+  } else if (ball.x + ball.r > bounds.right) {
+    ball.x = bounds.right - ball.r;
+    ball.vx = -Math.abs(ball.vx) * plinkoState.wallBounce;
+  }
+}
+
+function getPyramidBoundsAtY(y) {
+  const centerX = plinkoState.width / 2;
+  const topY = plinkoState.pyramidTopY;
+  const baseY = plinkoState.pyramidBaseY;
+  const t = Math.max(0, Math.min(1, (y - topY) / Math.max(1, baseY - topY)));
+  const minHalf = 14;
+  const maxHalf = (plinkoState.pyramidRight - plinkoState.pyramidLeft) / 2;
+  const half = minHalf + (maxHalf - minHalf) * t;
+  return {
+    left: centerX - half,
+    right: centerX + half
+  };
+}
+
+function getSlotArea() {
+  return {
+    left: plinkoState.pyramidLeft,
+    width: plinkoState.pyramidRight - plinkoState.pyramidLeft
+  };
 }
 
 function adminLogin() {
