@@ -54,7 +54,9 @@ const ui = {
   plinkoWinFx: document.getElementById("plinkoWinFx"),
   plinkoMultipliers: document.getElementById("plinkoMultipliers"),
   plinkoStats: document.getElementById("plinkoStats"),
-  plinkoResult: document.getElementById("plinkoResult")
+  plinkoResult: document.getElementById("plinkoResult"),
+  disclaimerOverlay: document.getElementById("disclaimerOverlay"),
+  disclaimerAccept: document.getElementById("disclaimerAccept")
 };
 
 const rouletteState = {
@@ -85,33 +87,30 @@ const plinkoState = {
   rows: 16,
   risk: "medium",
   multipliers: [],
-  pegs: [],
   balls: [],
   queue: 0,
   lastDropAt: 0,
-  dropIntervalMs: 130,
-  raf: 0,
+  dropIntervalMs: 220,
   running: false,
   pendingBets: 0,
   width: 0,
   height: 0,
-  topY: 52,
-  slotHeight: 48,
+  slotHeight: 54,
   pegRadius: 5,
   ballRadius: 7,
-  pyramidLeft: 40,
-  pyramidRight: 360,
-  pyramidTopY: 42,
-  pyramidBaseY: 360,
-  rowGap: 20,
-  gravity: 1180,
-  wallBounce: 0.72,
-  pegBounce: 0.78,
-  friction: 0.995,
+  spawnY: 34,
+  worldBodies: [],
+  slotSensors: [],
+  slotDividers: [],
+  sideWalls: [],
   ctx: null,
   soundEnabled: true,
   audioCtx: null,
-  resizeObserver: null
+  resizeObserver: null,
+  engine: null,
+  render: null,
+  runner: null,
+  eventsBound: false
 };
 let balance = 5000;
 let currentUserId = "";
@@ -123,6 +122,7 @@ init();
 function init() {
   initUserSession();
   bindEvents();
+  showDisclaimer();
   buildRouletteTrack();
   initPlinko();
   refreshBalance();
@@ -171,6 +171,7 @@ function bindEvents() {
     const count = Math.min(100, Math.max(1, Number(ui.plinkoCount.value) || 1));
     queuePlinkoDrops(count);
   });
+  ui.disclaimerAccept.addEventListener("click", hideDisclaimer);
 }
 
 function switchView(view) {
@@ -491,22 +492,28 @@ function generateVisitorId() {
 }
 
 function initPlinko() {
+  if (!window.Matter) {
+    ui.plinkoResult.textContent = "Matter.js failed to load.";
+    return;
+  }
   plinkoState.rows = Number(ui.plinkoRows.value);
   plinkoState.risk = ui.plinkoRisk.value;
   plinkoState.soundEnabled = ui.plinkoSound.checked;
-  plinkoState.ctx = ui.plinkoCanvas.getContext("2d");
   setupPlinkoResize();
+  createPlinkoEngine();
   rebuildPlinkoBoard();
-  startPlinkoLoop();
 }
 
 function rebuildPlinkoBoard() {
+  if (!plinkoState.engine || !plinkoState.render) return;
   updatePlinkoCanvasSize();
-  plinkoState.pegs = buildPegLayout(plinkoState.rows, plinkoState.width, plinkoState.height, plinkoState.topY, plinkoState.slotHeight);
+  clearPlinkoWorld();
   plinkoState.multipliers = generatePlinkoMultipliers(plinkoState.rows, plinkoState.risk);
+  buildPlinkoBoardBodies();
   plinkoState.balls = [];
   plinkoState.queue = 0;
   plinkoState.pendingBets = 0;
+  plinkoState.lastDropAt = 0;
   togglePlinkoButtons(false);
   renderPlinkoMultipliers();
   ui.plinkoStats.textContent = `${plinkoState.rows} rows | ${plinkoState.risk} risk`;
@@ -552,6 +559,7 @@ function renderPlinkoMultipliers() {
 }
 
 function queuePlinkoDrops(count) {
+  if (!plinkoState.engine) return;
   const bet = Math.max(10, Number(ui.plinkoBet.value) || 0);
   if (bet * count > balance) {
     ui.plinkoResult.textContent = "Not enough balance for selected amount of balls.";
@@ -571,10 +579,8 @@ function togglePlinkoButtons(disabled) {
 }
 
 function setupPlinkoResize() {
-  if (typeof ResizeObserver === "undefined") {
-    window.addEventListener("resize", rebuildPlinkoBoard);
-    return;
-  }
+  window.addEventListener("resize", rebuildPlinkoBoard);
+  if (typeof ResizeObserver === "undefined") return;
   if (plinkoState.resizeObserver) {
     plinkoState.resizeObserver.disconnect();
   }
@@ -585,66 +591,154 @@ function setupPlinkoResize() {
 }
 
 function updatePlinkoCanvasSize() {
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
   const rect = ui.plinkoBoard.getBoundingClientRect();
   plinkoState.width = Math.max(320, rect.width);
   plinkoState.height = Math.max(300, rect.height);
-  ui.plinkoCanvas.width = Math.floor(plinkoState.width * dpr);
-  ui.plinkoCanvas.height = Math.floor(plinkoState.height * dpr);
-  if (plinkoState.ctx) {
-    plinkoState.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ui.plinkoCanvas.width = plinkoState.width;
+  ui.plinkoCanvas.height = plinkoState.height;
+  if (plinkoState.render) {
+    plinkoState.render.options.width = plinkoState.width;
+    plinkoState.render.options.height = plinkoState.height;
+    plinkoState.render.canvas.width = plinkoState.width;
+    plinkoState.render.canvas.height = plinkoState.height;
   }
 }
 
-function buildPegLayout(rows, width, height, topY, slotHeight) {
-  const pegs = [];
-  const playableHeight = height - slotHeight - topY - 10;
-  const rowGap = playableHeight / rows;
-  const usableWidth = Math.min(width - 64, rows * 30);
-  const centerX = width / 2;
-  plinkoState.rowGap = rowGap;
-  plinkoState.pyramidTopY = Math.max(26, topY - rowGap * 0.3);
-  plinkoState.pyramidBaseY = height - slotHeight - 4;
-  plinkoState.pyramidLeft = centerX - usableWidth / 2 - 12;
-  plinkoState.pyramidRight = centerX + usableWidth / 2 + 12;
+function createPlinkoEngine() {
+  const MatterRef = window.Matter;
+  plinkoState.engine = MatterRef.Engine.create({
+    gravity: { x: 0, y: 1.12 },
+    positionIterations: 10,
+    velocityIterations: 8
+  });
+  plinkoState.render = MatterRef.Render.create({
+    canvas: ui.plinkoCanvas,
+    engine: plinkoState.engine,
+    options: {
+      width: ui.plinkoBoard.clientWidth,
+      height: ui.plinkoBoard.clientHeight,
+      wireframes: false,
+      background: "transparent",
+      pixelRatio: 1
+    }
+  });
+  plinkoState.runner = MatterRef.Runner.create({
+    isFixed: true,
+    delta: 1000 / 60
+  });
+  MatterRef.Render.run(plinkoState.render);
+  MatterRef.Runner.run(plinkoState.runner, plinkoState.engine);
+
+  if (!plinkoState.eventsBound) {
+    MatterRef.Events.on(plinkoState.engine, "beforeUpdate", onPlinkoBeforeUpdate);
+    MatterRef.Events.on(plinkoState.engine, "collisionStart", onPlinkoCollisionStart);
+    plinkoState.eventsBound = true;
+  }
+}
+
+function clearPlinkoWorld() {
+  const MatterRef = window.Matter;
+  MatterRef.World.clear(plinkoState.engine.world, false);
+  plinkoState.worldBodies = [];
+  plinkoState.slotSensors = [];
+  plinkoState.slotDividers = [];
+  plinkoState.sideWalls = [];
+}
+
+function buildPlinkoBoardBodies() {
+  const MatterRef = window.Matter;
+  const rows = plinkoState.rows;
+  const slotCount = rows + 1;
+  const centerX = plinkoState.width / 2;
+  const topY = 64;
+  const bottomSlotsY = plinkoState.height - plinkoState.slotHeight;
+  const usableHeight = bottomSlotsY - topY - 18;
+  const rowSpacing = usableHeight / rows;
+  const pegSpacing = Math.min((plinkoState.width - 120) / rows, 30);
+  const baseWidth = rows * pegSpacing + 20;
+  const leftBase = centerX - baseWidth / 2;
+  const rightBase = centerX + baseWidth / 2;
+  const wallThickness = 24;
 
   for (let row = 0; row < rows; row += 1) {
-    const cols = row + 1;
-    const y = topY + rowGap * (row + 0.5);
-    const rowWidth = (cols - 1) * (usableWidth / rows);
+    const count = row + 1;
+    const y = topY + row * rowSpacing;
+    const rowWidth = (count - 1) * pegSpacing;
     const startX = centerX - rowWidth / 2;
-    for (let col = 0; col < cols; col += 1) {
-      pegs.push({
-        x: startX + col * (usableWidth / rows),
-        y
+    for (let col = 0; col < count; col += 1) {
+      const peg = MatterRef.Bodies.circle(startX + col * pegSpacing, y, plinkoState.pegRadius, {
+        isStatic: true,
+        restitution: 0.95,
+        friction: 0,
+        frictionStatic: 0,
+        render: {
+          fillStyle: "#e7f5ff"
+        }
       });
+      plinkoState.worldBodies.push(peg);
     }
   }
-  return pegs;
-}
 
-function startPlinkoLoop() {
-  if (plinkoState.running) return;
-  plinkoState.running = true;
-  let last = performance.now();
+  const leftWall = MatterRef.Bodies.rectangle(centerX - baseWidth / 4 - 40, (topY + bottomSlotsY) / 2, wallThickness, usableHeight + 120, {
+    isStatic: true,
+    angle: 0.52,
+    render: { fillStyle: "rgba(0,0,0,0)" }
+  });
+  const rightWall = MatterRef.Bodies.rectangle(centerX + baseWidth / 4 + 40, (topY + bottomSlotsY) / 2, wallThickness, usableHeight + 120, {
+    isStatic: true,
+    angle: -0.52,
+    render: { fillStyle: "rgba(0,0,0,0)" }
+  });
+  const topCap = MatterRef.Bodies.rectangle(centerX, topY - 48, baseWidth + 130, 24, {
+    isStatic: true,
+    render: { fillStyle: "rgba(0,0,0,0)" }
+  });
+  const floor = MatterRef.Bodies.rectangle(centerX, plinkoState.height + 8, plinkoState.width + 40, 20, {
+    isStatic: true,
+    render: { fillStyle: "rgba(0,0,0,0)" }
+  });
 
-  function frame(now) {
-    const dt = Math.min(0.033, (now - last) / 1000);
-    last = now;
-    processPlinkoQueue(now);
-    stepPlinkoPhysics(dt);
-    drawPlinkoBoard();
-    plinkoState.raf = requestAnimationFrame(frame);
+  plinkoState.sideWalls.push(leftWall, rightWall);
+  plinkoState.worldBodies.push(leftWall, rightWall, topCap, floor);
+
+  const slotWidth = (rightBase - leftBase) / slotCount;
+  for (let i = 0; i <= slotCount; i += 1) {
+    const x = leftBase + i * slotWidth;
+    const divider = MatterRef.Bodies.rectangle(x, bottomSlotsY + plinkoState.slotHeight / 2, 6, plinkoState.slotHeight + 4, {
+      isStatic: true,
+      render: {
+        fillStyle: "rgba(255,255,255,0.12)"
+      }
+    });
+    plinkoState.slotDividers.push(divider);
+    plinkoState.worldBodies.push(divider);
   }
 
-  plinkoState.raf = requestAnimationFrame(frame);
+  for (let i = 0; i < slotCount; i += 1) {
+    const sensorX = leftBase + i * slotWidth + slotWidth / 2;
+    const sensor = MatterRef.Bodies.rectangle(sensorX, bottomSlotsY + plinkoState.slotHeight - 8, slotWidth - 10, 10, {
+      isStatic: true,
+      isSensor: true,
+      label: `slot-${i}`,
+      render: { fillStyle: "rgba(0,0,0,0)" }
+    });
+    plinkoState.slotSensors.push(sensor);
+    plinkoState.worldBodies.push(sensor);
+  }
+
+  MatterRef.World.add(plinkoState.engine.world, plinkoState.worldBodies);
+}
+
+function onPlinkoBeforeUpdate() {
+  if (!plinkoState.engine) return;
+  const now = performance.now();
+  processPlinkoQueue(now);
+  ui.plinkoStats.textContent = `Queued: ${plinkoState.queue} | In air: ${plinkoState.balls.length}`;
 }
 
 function processPlinkoQueue(now) {
   if (plinkoState.queue <= 0) {
-    if (plinkoState.balls.length === 0) {
-      togglePlinkoButtons(false);
-    }
+    if (plinkoState.balls.length === 0) togglePlinkoButtons(false);
     return;
   }
   togglePlinkoButtons(true);
@@ -653,167 +747,77 @@ function processPlinkoQueue(now) {
   const bet = Math.max(10, Number(ui.plinkoBet.value) || 0);
   if (bet > balance) {
     plinkoState.queue = 0;
-    plinkoState.pendingBets = 0;
     ui.plinkoResult.textContent = "Stopped: not enough balance for next ball.";
     return;
   }
 
   plinkoState.queue -= 1;
-  plinkoState.pendingBets = Math.max(0, plinkoState.pendingBets - 1);
   plinkoState.lastDropAt = now;
   spawnPlinkoBall(bet);
-  ui.plinkoStats.textContent = `Queued: ${plinkoState.queue} | In air: ${plinkoState.balls.length}`;
 }
 
 function spawnPlinkoBall(bet) {
+  const MatterRef = window.Matter;
   balance -= bet;
   refreshBalance();
-  plinkoState.balls.push({
-    x: plinkoState.width / 2 + (Math.random() - 0.5) * 2.2,
-    y: 22,
-    vx: (Math.random() - 0.5) * 14,
-    vy: 0,
-    r: plinkoState.ballRadius,
-    bet,
-    settled: false
+  const ball = MatterRef.Bodies.circle(plinkoState.width / 2 + (Math.random() - 0.5) * 2, plinkoState.spawnY, plinkoState.ballRadius, {
+    restitution: 0.82,
+    friction: 0.002,
+    frictionAir: 0.0035,
+    frictionStatic: 0,
+    density: 0.0028,
+    label: "plinko-ball",
+    render: {
+      fillStyle: "#ffffff"
+    }
   });
+  ball.plugin = {
+    plinkoBet: bet,
+    resolved: false
+  };
+  plinkoState.balls.push(ball);
+  MatterRef.World.add(plinkoState.engine.world, ball);
 }
 
-function stepPlinkoPhysics(dt) {
-  if (plinkoState.balls.length === 0) return;
-  const floorY = plinkoState.height - plinkoState.slotHeight - 2;
-
-  for (let i = plinkoState.balls.length - 1; i >= 0; i -= 1) {
-    const ball = plinkoState.balls[i];
-    if (ball.settled) continue;
-
-    ball.vy += plinkoState.gravity * dt;
-    ball.vx *= plinkoState.friction;
-    ball.x += ball.vx * dt;
-    ball.y += ball.vy * dt;
-
-    confineBallInsidePyramid(ball);
-
-    for (let p = 0; p < plinkoState.pegs.length; p += 1) {
-      const peg = plinkoState.pegs[p];
-      const dx = ball.x - peg.x;
-      const dy = ball.y - peg.y;
-      const minDist = ball.r + plinkoState.pegRadius;
-      const distSq = dx * dx + dy * dy;
-      if (distSq > 0 && distSq < minDist * minDist) {
-        const dist = Math.sqrt(distSq);
-        const nx = dx / dist;
-        const ny = dy / dist;
-        const overlap = minDist - dist;
-        ball.x += nx * overlap;
-        ball.y += ny * overlap;
-
-        const dot = ball.vx * nx + ball.vy * ny;
-        if (dot < 0) {
-          ball.vx -= (1 + plinkoState.pegBounce) * dot * nx;
-          ball.vy -= (1 + plinkoState.pegBounce) * dot * ny;
-          ball.vx += (Math.random() - 0.5) * 40;
-          playPlinkoTone(520 + Math.random() * 120, 0.016, 0.02);
-        }
+function onPlinkoCollisionStart(event) {
+  const MatterRef = window.Matter;
+  for (const pair of event.pairs) {
+    const ball = getBallFromPair(pair.bodyA, pair.bodyB);
+    const sensor = getSlotSensorFromPair(pair.bodyA, pair.bodyB);
+    if (!ball) {
+      if (pair.bodyA.label === "plinko-ball" || pair.bodyB.label === "plinko-ball") {
+        playPlinkoTone(520 + Math.random() * 120, 0.012, 0.015);
       }
+      continue;
     }
+    if (!sensor || ball.plugin?.resolved) continue;
 
-    if (ball.y + ball.r >= floorY) {
-      settlePlinkoBall(i);
-    }
+    const slotIndex = Number(sensor.label.replace("slot-", ""));
+    const multiplier = plinkoState.multipliers[slotIndex] || 0;
+    const bet = Number(ball.plugin?.plinkoBet || 0);
+    const win = Math.floor(bet * multiplier);
+    balance += win;
+    refreshBalance();
+    animateSlotHit(slotIndex, multiplier, win);
+    ui.plinkoResult.textContent = `Landed on ${multiplier}x | Bet: ${bet} | Win: ${win}`;
+    playPlinkoTone(multiplier >= 5 ? 820 : 640, 0.08, 0.04);
+    ball.plugin.resolved = true;
+
+    plinkoState.balls = plinkoState.balls.filter((b) => b.id !== ball.id);
+    MatterRef.World.remove(plinkoState.engine.world, ball);
   }
 }
 
-function settlePlinkoBall(ballIndex) {
-  const ball = plinkoState.balls[ballIndex];
-  const slotArea = getSlotArea();
-  const slotCount = plinkoState.multipliers.length;
-  const slotWidth = slotArea.width / slotCount;
-  const relativeX = ball.x - slotArea.left;
-  const slotIndex = Math.max(0, Math.min(slotCount - 1, Math.floor(relativeX / slotWidth)));
-  const multiplier = plinkoState.multipliers[slotIndex];
-  const win = Math.floor(ball.bet * multiplier);
-  balance += win;
-  refreshBalance();
-  animateSlotHit(slotIndex, multiplier, win);
-  ui.plinkoResult.textContent = `Landed on ${multiplier}x | Bet: ${ball.bet} | Win: ${win}`;
-  ui.plinkoStats.textContent = `Queued: ${plinkoState.queue} | In air: ${Math.max(0, plinkoState.balls.length - 1)}`;
-  plinkoState.balls.splice(ballIndex, 1);
-  playPlinkoTone(multiplier >= 5 ? 800 : 620, 0.08, 0.04);
+function getBallFromPair(a, b) {
+  if (a.label === "plinko-ball") return a;
+  if (b.label === "plinko-ball") return b;
+  return null;
 }
 
-function drawPlinkoBoard() {
-  const ctx = plinkoState.ctx;
-  if (!ctx) return;
-  ctx.clearRect(0, 0, plinkoState.width, plinkoState.height);
-  drawPlinkoBackground(ctx);
-  drawPlinkoPegs(ctx);
-  drawPlinkoSlots(ctx);
-  drawPlinkoBalls(ctx);
-}
-
-function drawPlinkoBackground(ctx) {
-  const grad = ctx.createLinearGradient(0, 0, 0, plinkoState.height);
-  grad.addColorStop(0, "rgba(16, 50, 80, 0.35)");
-  grad.addColorStop(1, "rgba(8, 20, 32, 0.45)");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, plinkoState.width, plinkoState.height);
-
-  ctx.beginPath();
-  const centerX = plinkoState.width / 2;
-  ctx.moveTo(centerX, plinkoState.pyramidTopY);
-  ctx.lineTo(plinkoState.pyramidLeft, plinkoState.pyramidBaseY);
-  ctx.lineTo(plinkoState.pyramidRight, plinkoState.pyramidBaseY);
-  ctx.closePath();
-  ctx.strokeStyle = "rgba(96, 171, 228, 0.3)";
-  ctx.lineWidth = 2;
-  ctx.stroke();
-}
-
-function drawPlinkoPegs(ctx) {
-  for (const peg of plinkoState.pegs) {
-    ctx.beginPath();
-    ctx.arc(peg.x, peg.y, plinkoState.pegRadius, 0, Math.PI * 2);
-    ctx.fillStyle = "#e6f2ff";
-    ctx.shadowBlur = 8;
-    ctx.shadowColor = "rgba(170, 220, 255, 0.8)";
-    ctx.fill();
-  }
-  ctx.shadowBlur = 0;
-}
-
-function drawPlinkoSlots(ctx) {
-  const slotCount = plinkoState.multipliers.length;
-  const slotArea = getSlotArea();
-  const slotWidth = slotArea.width / slotCount;
-  const top = plinkoState.height - plinkoState.slotHeight;
-  for (let i = 0; i < slotCount; i += 1) {
-    const mult = plinkoState.multipliers[i];
-    const isHigh = mult >= Math.max(...plinkoState.multipliers) * 0.7;
-    const isLow = mult <= 1;
-    ctx.fillStyle = isHigh ? "#d82155" : isLow ? "#d38f11" : "#d46a27";
-    const x = slotArea.left + i * slotWidth;
-    ctx.fillRect(x + 1, top, slotWidth - 2, plinkoState.slotHeight);
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 12px Segoe UI";
-    ctx.textAlign = "center";
-    ctx.fillText(`${mult}x`, x + slotWidth / 2, top + 28);
-  }
-}
-
-function drawPlinkoBalls(ctx) {
-  for (const ball of plinkoState.balls) {
-    ctx.beginPath();
-    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-    const glow = ctx.createRadialGradient(ball.x - 2, ball.y - 2, 1, ball.x, ball.y, ball.r);
-    glow.addColorStop(0, "#ffffff");
-    glow.addColorStop(1, "#d7ebff");
-    ctx.fillStyle = glow;
-    ctx.shadowBlur = 12;
-    ctx.shadowColor = "rgba(255, 255, 255, 0.85)";
-    ctx.fill();
-  }
-  ctx.shadowBlur = 0;
+function getSlotSensorFromPair(a, b) {
+  if (a.isSensor && a.label.startsWith("slot-")) return a;
+  if (b.isSensor && b.label.startsWith("slot-")) return b;
+  return null;
 }
 
 function animateSlotHit(slotIndex, multiplier, win) {
@@ -860,36 +864,25 @@ function playPlinkoTone(freq, duration, volume) {
   osc.stop(now + duration);
 }
 
-function confineBallInsidePyramid(ball) {
-  const bounds = getPyramidBoundsAtY(ball.y);
-  if (ball.x - ball.r < bounds.left) {
-    ball.x = bounds.left + ball.r;
-    ball.vx = Math.abs(ball.vx) * plinkoState.wallBounce;
-  } else if (ball.x + ball.r > bounds.right) {
-    ball.x = bounds.right - ball.r;
-    ball.vx = -Math.abs(ball.vx) * plinkoState.wallBounce;
-  }
-}
-
-function getPyramidBoundsAtY(y) {
-  const centerX = plinkoState.width / 2;
-  const topY = plinkoState.pyramidTopY;
-  const baseY = plinkoState.pyramidBaseY;
-  const t = Math.max(0, Math.min(1, (y - topY) / Math.max(1, baseY - topY)));
-  const minHalf = 14;
-  const maxHalf = (plinkoState.pyramidRight - plinkoState.pyramidLeft) / 2;
-  const half = minHalf + (maxHalf - minHalf) * t;
-  return {
-    left: centerX - half,
-    right: centerX + half
-  };
-}
-
 function getSlotArea() {
+  const slotCount = plinkoState.multipliers.length || (plinkoState.rows + 1);
+  const slotWidth = Math.min((plinkoState.width - 90) / slotCount, 36);
+  const width = slotWidth * slotCount;
+  const left = (plinkoState.width - width) / 2;
   return {
-    left: plinkoState.pyramidLeft,
-    width: plinkoState.pyramidRight - plinkoState.pyramidLeft
+    left,
+    width
   };
+}
+
+function showDisclaimer() {
+  ui.disclaimerOverlay.classList.remove("hidden");
+  document.body.classList.add("disclaimer-open");
+}
+
+function hideDisclaimer() {
+  ui.disclaimerOverlay.classList.add("hidden");
+  document.body.classList.remove("disclaimer-open");
 }
 
 function adminLogin() {

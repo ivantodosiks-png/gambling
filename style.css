@@ -18,6 +18,10 @@ body {
   background: radial-gradient(circle at 10% 10%, #1d1f43 0%, var(--bg) 45%, #080a11 100%);
 }
 
+body.disclaimer-open {
+  overflow: hidden;
+}
+
 .bg-glow {
   position: fixed;
   inset: 0;
@@ -390,6 +394,37 @@ input {
 
 .hidden {
   display: none;
+}
+
+.disclaimer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 8, 16, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 1000;
+}
+
+.disclaimer-overlay.hidden {
+  display: none;
+}
+
+.disclaimer-card {
+  width: min(680px, 100%);
+  border-radius: 16px;
+  padding: 22px;
+}
+
+.disclaimer-card h2 {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.disclaimer-card p {
+  margin: 0 0 10px;
+  line-height: 1.5;
 }
 
 .admin-box {
