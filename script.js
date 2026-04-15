@@ -608,9 +608,12 @@ function createPlinkoEngine() {
   const MatterRef = window.Matter;
   plinkoState.engine = MatterRef.Engine.create({
     gravity: { x: 0, y: 1.12 },
-    positionIterations: 10,
-    velocityIterations: 8
+    positionIterations: 20,
+    velocityIterations: 20,
+    constraintIterations: 10,
+    enableSleeping: false
   });
+  plinkoState.engine.timing.timeScale = 1;
   plinkoState.render = MatterRef.Render.create({
     canvas: ui.plinkoCanvas,
     engine: plinkoState.engine,
@@ -619,12 +622,13 @@ function createPlinkoEngine() {
       height: ui.plinkoBoard.clientHeight,
       wireframes: false,
       background: "transparent",
-      pixelRatio: 1
+      pixelRatio: 1,
+      hasBounds: true
     }
   });
   plinkoState.runner = MatterRef.Runner.create({
     isFixed: true,
-    delta: 1000 / 60
+    delta: 1000 / 120
   });
   MatterRef.Render.run(plinkoState.render);
   MatterRef.Runner.run(plinkoState.runner, plinkoState.engine);
@@ -652,10 +656,11 @@ function buildPlinkoBoardBodies() {
   const centerX = plinkoState.width / 2;
   const topY = 64;
   const bottomSlotsY = plinkoState.height - plinkoState.slotHeight;
-  const usableHeight = bottomSlotsY - topY - 18;
+  const usableHeight = Math.max(260, bottomSlotsY - topY - 20);
   const rowSpacing = usableHeight / rows;
-  const pegSpacing = Math.min((plinkoState.width - 120) / rows, 30);
-  const baseWidth = rows * pegSpacing + 20;
+  const slotWidth = Math.min((plinkoState.width - 80) / slotCount, 38);
+  const pegSpacing = Math.min(slotWidth, 34);
+  const baseWidth = slotWidth * slotCount;
   const leftBase = centerX - baseWidth / 2;
   const rightBase = centerX + baseWidth / 2;
   const wallThickness = 24;
@@ -668,7 +673,7 @@ function buildPlinkoBoardBodies() {
     for (let col = 0; col < count; col += 1) {
       const peg = MatterRef.Bodies.circle(startX + col * pegSpacing, y, plinkoState.pegRadius, {
         isStatic: true,
-        restitution: 0.95,
+        restitution: 0.96,
         friction: 0,
         frictionStatic: 0,
         render: {
@@ -679,33 +684,40 @@ function buildPlinkoBoardBodies() {
     }
   }
 
-  const leftWall = MatterRef.Bodies.rectangle(centerX - baseWidth / 4 - 40, (topY + bottomSlotsY) / 2, wallThickness, usableHeight + 120, {
+  const leftWall = MatterRef.Bodies.rectangle(leftBase - wallThickness / 2, topY + (bottomSlotsY - topY) / 2, wallThickness, bottomSlotsY - topY + plinkoState.slotHeight + 24, {
     isStatic: true,
-    angle: 0.52,
+    restitution: 0.2,
+    friction: 0,
     render: { fillStyle: "rgba(0,0,0,0)" }
   });
-  const rightWall = MatterRef.Bodies.rectangle(centerX + baseWidth / 4 + 40, (topY + bottomSlotsY) / 2, wallThickness, usableHeight + 120, {
+  const rightWall = MatterRef.Bodies.rectangle(rightBase + wallThickness / 2, topY + (bottomSlotsY - topY) / 2, wallThickness, bottomSlotsY - topY + plinkoState.slotHeight + 24, {
     isStatic: true,
-    angle: -0.52,
+    restitution: 0.2,
+    friction: 0,
     render: { fillStyle: "rgba(0,0,0,0)" }
   });
-  const topCap = MatterRef.Bodies.rectangle(centerX, topY - 48, baseWidth + 130, 24, {
+  const topWall = MatterRef.Bodies.rectangle(centerX, topY - wallThickness / 2, baseWidth + 48, wallThickness, {
     isStatic: true,
+    restitution: 0.2,
+    friction: 0,
     render: { fillStyle: "rgba(0,0,0,0)" }
   });
-  const floor = MatterRef.Bodies.rectangle(centerX, plinkoState.height + 8, plinkoState.width + 40, 20, {
+  const bottomFloor = MatterRef.Bodies.rectangle(centerX, bottomSlotsY + plinkoState.slotHeight / 2 + 6, baseWidth + 8, 12, {
     isStatic: true,
+    restitution: 0.3,
+    friction: 0.02,
     render: { fillStyle: "rgba(0,0,0,0)" }
   });
 
   plinkoState.sideWalls.push(leftWall, rightWall);
-  plinkoState.worldBodies.push(leftWall, rightWall, topCap, floor);
+  plinkoState.worldBodies.push(leftWall, rightWall, topWall, bottomFloor);
 
-  const slotWidth = (rightBase - leftBase) / slotCount;
   for (let i = 0; i <= slotCount; i += 1) {
     const x = leftBase + i * slotWidth;
-    const divider = MatterRef.Bodies.rectangle(x, bottomSlotsY + plinkoState.slotHeight / 2, 6, plinkoState.slotHeight + 4, {
+    const divider = MatterRef.Bodies.rectangle(x, bottomSlotsY + plinkoState.slotHeight / 2, 6, plinkoState.slotHeight + 16, {
       isStatic: true,
+      restitution: 0.2,
+      friction: 0,
       render: {
         fillStyle: "rgba(255,255,255,0.12)"
       }
@@ -716,7 +728,7 @@ function buildPlinkoBoardBodies() {
 
   for (let i = 0; i < slotCount; i += 1) {
     const sensorX = leftBase + i * slotWidth + slotWidth / 2;
-    const sensor = MatterRef.Bodies.rectangle(sensorX, bottomSlotsY + plinkoState.slotHeight - 8, slotWidth - 10, 10, {
+    const sensor = MatterRef.Bodies.rectangle(sensorX, bottomSlotsY + plinkoState.slotHeight - 12, slotWidth - 10, 12, {
       isStatic: true,
       isSensor: true,
       label: `slot-${i}`,
@@ -760,12 +772,13 @@ function spawnPlinkoBall(bet) {
   const MatterRef = window.Matter;
   balance -= bet;
   refreshBalance();
-  const ball = MatterRef.Bodies.circle(plinkoState.width / 2 + (Math.random() - 0.5) * 2, plinkoState.spawnY, plinkoState.ballRadius, {
+  const ball = MatterRef.Bodies.circle(plinkoState.width / 2 + (Math.random() - 0.5) * 3, plinkoState.spawnY, plinkoState.ballRadius, {
     restitution: 0.82,
-    friction: 0.002,
-    frictionAir: 0.0035,
+    friction: 0.01,
+    frictionAir: 0.006,
     frictionStatic: 0,
-    density: 0.0028,
+    density: 0.003,
+    slop: 0.01,
     label: "plinko-ball",
     render: {
       fillStyle: "#ffffff"
