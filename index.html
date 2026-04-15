@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,45 +16,49 @@
         <p>Roulette + Mines</p>
       </div>
     </div>
-    <div class="balance-box">Balance: <span id="balanceValue">5000</span> coins</div>
+    <div class="balance-box">
+      Balance: <span id="balanceValue">5000</span> coins
+      <span class="player-id">ID: <span id="playerIdValue">-</span></span>
+    </div>
     <nav class="mode-tabs">
-      <button id="btnHome" class="tab active">Главная</button>
-      <button id="btnRoulette" class="tab">Шарик / Рулетка</button>
+      <button id="btnHome" class="tab active">Home</button>
+      <button id="btnRoulette" class="tab">Ball / Roulette</button>
       <button id="btnMines" class="tab">Mines</button>
+      <button id="btnAdmin" class="tab">Admin</button>
     </nav>
   </header>
 
   <main class="layout">
     <section id="homeView" class="view active">
       <div class="hero glass">
-        <h2>Выбор режима</h2>
-        <p>Выбери игру и запусти симуляцию в стиле казино.</p>
+        <h2>Choose a mode</h2>
+        <p>Pick a game and run a smooth casino-style simulation.</p>
         <div class="hero-actions">
-          <button id="homeToRoulette" class="main-btn">Открыть рулетку</button>
-          <button id="homeToMines" class="main-btn alt">Открыть mines</button>
+          <button id="homeToRoulette" class="main-btn">Open Roulette</button>
+          <button id="homeToMines" class="main-btn alt">Open Mines</button>
         </div>
       </div>
     </section>
 
     <section id="rouletteView" class="view">
       <div class="panel glass">
-        <h2>Шарик / Рулетка</h2>
-        <p class="muted">Нажми Start Simulation — шарик ускорится, потом плавно замедлится и остановится на множителе.</p>
+        <h2>Ball / Roulette</h2>
+        <p class="muted">Press Start Simulation - the wheel speeds up, slows down smoothly, and always finishes on the selected multiplier.</p>
         <div class="roulette-wrap">
           <div class="center-line"></div>
           <div id="ballTrack" class="ball-track"></div>
         </div>
         <button id="startSimulation" class="main-btn">Start Simulation</button>
-        <p id="rouletteResult" class="result-text">Результат появится здесь</p>
+        <p id="rouletteResult" class="result-text">Result will appear here</p>
       </div>
     </section>
 
     <section id="minesView" class="view">
       <div class="panel glass">
         <h2>Mines</h2>
-        <p class="muted">Открой клетки. Если попал на мину — взрыв.</p>
+        <p class="muted">Open cells. Hit a mine and the round is over.</p>
         <div class="mines-controls">
-          <label for="gridSize">Размер поля:</label>
+          <label for="gridSize">Grid size:</label>
           <select id="gridSize">
             <option value="2">2x2</option>
             <option value="3">3x3</option>
@@ -71,16 +75,40 @@
             <option value="14">14x14</option>
             <option value="15">15x15</option>
           </select>
-          <label for="minesCount">Мины:</label>
+          <label for="minesCount">Mines:</label>
           <select id="minesCount"></select>
-          <label for="betAmount">Ставка:</label>
+          <label for="betAmount">Bet:</label>
           <input id="betAmount" type="number" min="10" step="10" value="100">
           <button id="startMines" class="main-btn">Start</button>
-          <button id="cashoutMines" class="main-btn alt">Вывод</button>
-          <button id="resetMines" class="tab">Сброс</button>
+          <button id="cashoutMines" class="main-btn alt">Cash Out</button>
+          <button id="resetMines" class="tab">Reset</button>
         </div>
         <div id="minesGrid" class="mines-grid"></div>
-        <p id="minesResult" class="result-text">Настрой поле и нажми Start</p>
+        <p id="minesResult" class="result-text">Set options and press Start</p>
+      </div>
+    </section>
+
+    <section id="adminView" class="view">
+      <div class="panel glass">
+        <h2>Admin Panel</h2>
+        <p class="muted">Manage user balances by generated visitor ID.</p>
+
+        <div id="adminLoginBox" class="admin-box">
+          <label for="adminName">Name:</label>
+          <input id="adminName" type="text" autocomplete="off" placeholder="Ivan">
+          <label for="adminPassword">Password:</label>
+          <input id="adminPassword" type="password" autocomplete="off" placeholder="Enter password">
+          <button id="adminLoginBtn" class="main-btn">Login</button>
+          <p id="adminAuthText" class="result-text">Login required.</p>
+        </div>
+
+        <div id="adminControls" class="admin-controls hidden">
+          <div class="admin-actions">
+            <button id="adminRefreshBtn" class="tab">Refresh List</button>
+            <button id="adminLogoutBtn" class="tab">Logout</button>
+          </div>
+          <div id="adminUsersList" class="admin-users-list"></div>
+        </div>
       </div>
     </section>
   </main>
