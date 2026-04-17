@@ -1,5 +1,5 @@
 // 1) URL и ANON KEY берутся из /supabase-config.js (он генерится из .env сервером server.js)
-// 2) Если у тебя нет server.js, можно вставить значения прямо сюда (НЕ service_role key!)
+// 2) Для Vercel/статики вставь ключи в supabase-config.js (НЕ service_role key!)
 
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
@@ -11,4 +11,3 @@ if (!cfg.url || !cfg.anonKey) {
 }
 
 export const supabase = createClient(cfg.url, cfg.anonKey);
-

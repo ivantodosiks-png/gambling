@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin</title>
+    <style>
+      :root { color-scheme: dark; }
+      body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: #0b1020; color: #e9edf7; }
+      header { position: sticky; top: 0; background: rgba(11,16,32,0.9); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.12); }
+      .wrap { max-width: 980px; margin: 0 auto; padding: 18px 16px; }
+      .row { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+      .muted { color: rgba(233, 237, 247, 0.7); font-size: 13px; }
+      button { cursor: pointer; border: 0; padding: 10px 12px; border-radius: 10px; background: #33d18f; color: #07110c; font-weight: 800; }
+      button.secondary { background: rgba(255,255,255,0.08); color: #e9edf7; border: 1px solid rgba(255,255,255,0.14); }
+      input { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.04); color: #e9edf7; }
+      input:focus { outline: none; border-color: rgba(125, 211, 252, 0.55); box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.14); }
+      table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+      th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid rgba(255,255,255,0.10); vertical-align: middle; }
+      th { font-size: 12px; color: rgba(233,237,247,0.65); font-weight: 700; }
+      code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 6px; }
+      .pill { display: inline-block; padding: 4px 8px; border: 1px solid rgba(255,255,255,0.14); border-radius: 999px; font-size: 12px; }
+      .err { color: #ff6b6b; }
+      .ok { color: #33d18f; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="wrap">
+        <div class="row">
+          <div>
+            <h2 style="margin:0 0 4px;">Admin panel</h2>
+            <div class="muted">Список пользователей из `public.profiles` и изменение `balance`.</div>
+          </div>
+          <div class="row" style="justify-content:flex-end;">
+            <button id="refreshBtn" class="secondary" type="button">Refresh</button>
+            <button id="logoutBtn" type="button">Logout</button>
+          </div>
+        </div>
+        <div style="margin-top:12px;">
+          <input id="search" placeholder="Поиск по email или UUID..." />
+          <div id="status" class="muted" style="margin-top:8px;"></div>
+        </div>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Email</th>
+            <th>Balance</th>
+            <th>Created</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </main>
+
+    <script src="/supabase-config.js"></script>
+    <script src="./supabase-config.js"></script>
+    <script type="module">
+      import { supabase } from "./supabase.js";
+
+      const statusEl = document.getElementById("status");
+      const rowsEl = document.getElementById("rows");
+      const searchEl = document.getElementById("search");
+      const refreshBtn = document.getElementById("refreshBtn");
+      const logoutBtn = document.getElementById("logoutBtn");
+
+      function setStatus(text, kind = "muted") {
+        statusEl.textContent = text;
+        statusEl.className = kind === "err" ? "muted err" : kind === "ok" ? "muted ok" : "muted";
+      }
+
+      async function requireAuth() {
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) {
+          window.location.href = "./index.html";
+          return null;
+        }
+        return data.session.user;
+      }
+
+      const user = await requireAuth();
+      if (!user) throw new Error("No session");
+
+      // Проверяем что это админ (функция is_admin из SQL)
+      const { data: isAdmin, error: adminErr } = await supabase.rpc("is_admin");
+      if (adminErr) {
+        setStatus(`Ошибка is_admin: ${adminErr.message}`, "err");
+        throw adminErr;
+      }
+      if (!isAdmin) {
+        setStatus("Нет доступа. Добавь себя в таблицу public.admins (SQL Editor).", "err");
+        rowsEl.innerHTML = "";
+        throw new Error("Not admin");
+      }
+
+      setStatus("OK: admin", "ok");
+
+      let all = [];
+
+      function render() {
+        const q = searchEl.value.trim().toLowerCase();
+        const list = q
+          ? all.filter((p) => String(p.id).toLowerCase().includes(q) || String(p.email).toLowerCase().includes(q))
+          : all;
+
+        rowsEl.innerHTML = "";
+        for (const p of list) {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td><code>${p.id}</code></td>
+            <td>${p.email || "-"}</td>
+            <td>
+              <input data-id="${p.id}" class="bal" type="number" step="1" value="${Number(p.balance ?? 0)}" />
+            </td>
+            <td><span class="pill">${p.created_at ? new Date(p.created_at).toLocaleString() : "-"}</span></td>
+            <td><button data-id="${p.id}" class="save" type="button">Save</button></td>
+          `;
+          rowsEl.appendChild(tr);
+        }
+      }
+
+      async function load() {
+        setStatus("Загружаю пользователей...");
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id,email,balance,created_at")
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          setStatus(`Ошибка загрузки: ${error.message}`, "err");
+          return;
+        }
+        all = data || [];
+        setStatus(`Пользователей: ${all.length}`, "ok");
+        render();
+      }
+
+      rowsEl.addEventListener("click", async (e) => {
+        const btn = e.target?.closest?.("button.save");
+        if (!btn) return;
+        const id = btn.getAttribute("data-id");
+        const input = rowsEl.querySelector(`input.bal[data-id="${id}"]`);
+        const balance = Number(input?.value ?? 0);
+        if (!Number.isFinite(balance) || balance < 0) return setStatus("Balance должен быть числом >= 0", "err");
+
+        btn.disabled = true;
+        const { error } = await supabase.from("profiles").update({ balance }).eq("id", id);
+        btn.disabled = false;
+
+        if (error) return setStatus(`Ошибка update: ${error.message}`, "err");
+        setStatus("Сохранено", "ok");
+        const idx = all.findIndex((x) => x.id === id);
+        if (idx >= 0) all[idx].balance = balance;
+      });
+
+      searchEl.addEventListener("input", render);
+      refreshBtn.addEventListener("click", load);
+      logoutBtn.addEventListener("click", async () => {
+        await supabase.auth.signOut();
+        window.location.href = "./index.html";
+      });
+
+      await load();
+    </script>
+  </body>
+</html>
+
