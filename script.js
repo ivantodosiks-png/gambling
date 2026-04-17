@@ -122,7 +122,6 @@ let isAdminLoggedIn = false;
 init();
 
 function init() {
-  initUserSession();
   bindEvents();
   showDisclaimer();
   buildRouletteTrack();
@@ -221,6 +220,7 @@ function startSimulation() {
   }
   
   balance -= bet;
+  authManager.setBalance(balance);
   refreshBalance();
   
   buildRouletteTrack();
@@ -453,13 +453,8 @@ function setCellsDisabled(disabled) {
 }
 
 function refreshBalance() {
+  balance = authManager.getBalance();
   ui.balanceValue.textContent = String(balance);
-  if (!currentUserId) return;
-  const user = usersStore[currentUserId];
-  if (!user) return;
-  user.balance = balance;
-  user.lastSeenAt = Date.now();
-  saveUsersStore();
 }
 
 function weightedPick(list) {

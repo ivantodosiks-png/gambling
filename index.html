@@ -174,7 +174,52 @@
     </div>
   </div>
 
+  <div id="authOverlay" class="auth-overlay">
+    <div class="auth-card glass">
+      <div class="auth-container">
+        <div id="loginForm" class="auth-form active">
+          <h2>Login</h2>
+          <div class="form-group">
+            <label for="loginUsername">Username:</label>
+            <input id="loginUsername" type="text" placeholder="Enter your username" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="loginPassword">Password:</label>
+            <input id="loginPassword" type="password" placeholder="Enter your password" autocomplete="off">
+          </div>
+          <button id="loginBtn" class="main-btn full-width">Login</button>
+          <p class="toggle-text">No account? <button id="switchToRegister" class="text-btn">Register</button></p>
+          <p id="loginError" class="error-text"></p>
+        </div>
+
+        <div id="registerForm" class="auth-form">
+          <h2>Register</h2>
+          <div class="form-group">
+            <label for="regUsername">Username:</label>
+            <input id="regUsername" type="text" placeholder="Choose a username" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="regEmail">Email:</label>
+            <input id="regEmail" type="email" placeholder="Enter your email" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="regPassword">Password:</label>
+            <input id="regPassword" type="password" placeholder="Create a password" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="regPasswordConfirm">Confirm Password:</label>
+            <input id="regPasswordConfirm" type="password" placeholder="Confirm your password" autocomplete="off">
+          </div>
+          <button id="registerBtn" class="main-btn full-width">Register</button>
+          <p class="toggle-text">Already have an account? <button id="switchToLogin" class="text-btn">Login</button></p>
+          <p id="registerError" class="error-text"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
+  <script src="auth.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
