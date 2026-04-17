@@ -451,12 +451,12 @@ main > .wrap {
 .roulette-stage-wrap {
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(0, 0.45fr) minmax(0, 0.55fr);
+  grid-template-rows: minmax(0, 1fr) minmax(200px, 1fr);
   min-height: 0;
 }
 
 .roulette-wheel {
-  width: min(340px, 35vh, 92vw);
+  width: min(380px, 42vh, 92vw);
   aspect-ratio: 1 / 1;
   margin: 0 auto;
   position: relative;
@@ -591,20 +591,20 @@ main > .wrap {
   background: linear-gradient(180deg, rgba(9, 12, 28, 0.48), rgba(7, 10, 22, 0.30));
   border: 1px solid rgba(255,255,255,0.10);
   border-radius: 16px;
-  padding: 12px;
+  padding: 10px;
   overflow: auto;
-  min-height: 0;
+  min-height: 240px;
   backdrop-filter: blur(16px);
 }
 .roulette-table-wrap { scrollbar-width: none; }
 .roulette-table-wrap::-webkit-scrollbar { width: 0; height: 0; }
 .roulette-table { display: grid; gap: 10px; }
 .rt-grid {
-  --z: clamp(50px, 6.5vh, 70px);
-  --c: clamp(38px, 5.5vh, 52px);
+  --z: clamp(42px, 5.5vh, 62px);
+  --c: clamp(32px, 4.5vh, 46px);
   display: grid;
   grid-template-columns: var(--z) repeat(12, var(--c));
-  gap: 5px;
+  gap: 4px;
 }
 .rt-top { grid-template-rows: repeat(3, var(--c)); }
 .rt-dozens, .rt-outs { grid-template-rows: var(--c); }
