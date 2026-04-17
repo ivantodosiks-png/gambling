@@ -88,6 +88,12 @@
       tabLogin.addEventListener("click", () => setMode("login"));
       tabRegister.addEventListener("click", () => setMode("register"));
 
+      // Если ключи не подгрузились, сразу показываем понятную ошибку.
+      if (!window.__SUPABASE__?.url || !window.__SUPABASE__?.anonKey) {
+        setError("Нет ключей Supabase. Проверь SUPABASE_URL и SUPABASE_ANON_KEY в .env и что сайт запущен через server.js");
+        submitBtn.disabled = true;
+      }
+
       async function goIfAuthed() {
         const { data } = await supabase.auth.getSession();
         if (data.session) window.location.href = "./dashboard.html";
@@ -109,10 +115,18 @@
 
         try {
           if (mode === "register") {
-            const { error } = await supabase.auth.signUp({ email, password });
+            const { data, error } = await supabase.auth.signUp({ email, password });
             if (error) throw error;
-            // Если включена email-confirmation, сессии не будет сразу — это нормально.
-            setOk("Готово. Если включено подтверждение email — проверь почту.");
+
+            // После регистрации: переключаем на логин (как ты просил).
+            setMode("login");
+            passEl.value = "";
+
+            // Если включено подтверждение email, логин не сработает пока не подтвердить.
+            const needsConfirm = !data?.session;
+            setOk(needsConfirm
+              ? "Аккаунт создан. Проверь почту и подтверди email, потом логинься."
+              : "Аккаунт создан. Теперь залогинься.");
           } else {
             const { error } = await supabase.auth.signInWithPassword({ email, password });
             if (error) throw error;
@@ -133,4 +147,3 @@
     </script>
   </body>
 </html>
-

@@ -31,6 +31,8 @@
         <div id="email" style="margin:6px 0 14px; font-size: 16px;"></div>
         <div class="muted">User ID:</div>
         <div><code id="userId"></code></div>
+        <div style="margin-top:14px;" class="muted">Profile row (public.profiles):</div>
+        <div class="muted" id="profileStatus" style="margin-top:6px;"></div>
         <div style="margin-top:18px;" class="muted">
           Вернуться на <a href="./index.html">страницу логина</a>.
         </div>
@@ -57,6 +59,24 @@
       document.getElementById("email").textContent = user.email || "-";
       document.getElementById("userId").textContent = user.id;
 
+      const profileStatus = document.getElementById("profileStatus");
+      try {
+        const { data: profile, error } = await supabase
+          .from("profiles")
+          .select("id,email,created_at")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (!profile) {
+          profileStatus.textContent = "Не найдено. Запусти SQL из supabase_profiles.sql (триггер профиля).";
+        } else {
+          profileStatus.textContent = `OK: ${profile.email} | ${profile.created_at}`;
+        }
+      } catch (e) {
+        profileStatus.textContent = e?.message ? `Ошибка profiles: ${e.message}` : "Ошибка profiles";
+      }
+
       document.getElementById("logoutBtn").addEventListener("click", async () => {
         await supabase.auth.signOut();
         window.location.href = "./index.html";
@@ -69,4 +89,3 @@
     </script>
   </body>
 </html>
-
