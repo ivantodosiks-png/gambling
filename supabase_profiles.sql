@@ -12,8 +12,8 @@ create table if not exists public.profiles (
 -- If table already exists from earlier runs
 alter table public.profiles add column if not exists username text;
 
--- 2) Включаем RLS
-alter table public.profiles enable row level security;
+-- 2) Отключаем RLS для простоты (как в других таблицах)
+alter table public.profiles disable row level security;
 
 -- 3) Таблица админов (заполняешь вручную в SQL Editor одним insert)
 create table if not exists public.admins (
@@ -21,15 +21,7 @@ create table if not exists public.admins (
   created_at timestamptz not null default now()
 );
 
-alter table public.admins enable row level security;
-
--- Пользователь может видеть только свою запись админа (для проверки "я админ?")
-drop policy if exists "admins_select_own" on public.admins;
-create policy "admins_select_own"
-on public.admins
-for select
-to authenticated
-using (user_id = auth.uid());
+alter table public.admins disable row level security;
 
 -- Функция-проверка: админ ли текущий пользователь
 create or replace function public.is_admin()
@@ -42,45 +34,7 @@ as $$
   select exists(select 1 from public.admins where user_id = auth.uid());
 $$;
 
--- 4) Политики profiles:
--- - обычный пользователь: видит только себя
--- - админ: видит всех
--- - все могут видеть профили с username для лидерборда
-drop policy if exists "profiles_select_own" on public.profiles;
-create policy "profiles_select_own"
-on public.profiles
-for select
-to authenticated
-using (id = auth.uid() or public.is_admin());
-
--- Все (анон + аутентифицированные) могут видеть профили с username для лидерборда
-drop policy if exists "profiles_select_leaderboard" on public.profiles;
-create policy "profiles_select_leaderboard"
-on public.profiles
-for select
-to anon, authenticated
-using (username is not null and length(trim(username)) > 0);
-
--- Анонимные пользователи могут видеть все профили (для лидерборда через RPC)
-drop policy if exists "profiles_select_anon" on public.profiles;
-create policy "profiles_select_anon"
-on public.profiles
-for select
-to anon
-using (true);
-
--- Обновлять profiles может:
--- - сам пользователь (свой профиль)
--- - админ (любой профиль)
-drop policy if exists "profiles_update_own_or_admin" on public.profiles;
-create policy "profiles_update_own_or_admin"
-on public.profiles
-for update
-to authenticated
-using (id = auth.uid() or public.is_admin())
-with check (id = auth.uid() or public.is_admin());
-
--- 5) Триггер: автосоздание профиля после регистрации
+-- 4) Триггер: автосоздание профиля после регистрации
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql

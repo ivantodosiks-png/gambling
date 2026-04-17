@@ -25,15 +25,41 @@ const BJ = (() => {
       }
 
       // Получаем профиль из Supabase
-      const { data: profile, error } = await sb
+      let { data: profile, error } = await sb
         .from('profiles')
         .select('*')
         .eq('id', currentUser.id)
         .single();
 
-      if (error) {
-        console.error('Ошибка получения профиля:', error);
-        return null;
+      // Если профиль не найден, создаём его
+      if (error || !profile) {
+        console.log('Профиль не найден, создаём новый...');
+        
+        const newProfile = {
+          id: currentUser.id,
+          email: currentUser.email || '',
+          username: currentUser.username || 'Player',
+          balance: 5000,
+        };
+
+        const { data: created, error: insertError } = await sb
+          .from('profiles')
+          .insert([newProfile])
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('Ошибка создания профиля:', insertError);
+          // Пробуем ещё раз получить профиль (может быть конфликт)
+          const { data: existing } = await sb
+            .from('profiles')
+            .select('*')
+            .eq('id', currentUser.id)
+            .single();
+          return existing || null;
+        }
+
+        return created;
       }
       
       return profile;
@@ -203,20 +229,23 @@ const BJ = (() => {
     try {
       const profile = await getProfile();
       if (!profile) {
-        showMessage('bjLobbyMsg', 'Error: Could not get profile', 'error');
+        showMessage('bjLobbyMsg', 'Ошибка: не удалось получить профиль. Перезагрузитесь.', 'error');
         return;
       }
 
       const minBet = parseInt(document.getElementById('bjMinBetInput').value) || 10;
       if (minBet < 1) {
-        showMessage('bjLobbyMsg', 'Min bet must be at least 1', 'error');
+        showMessage('bjLobbyMsg', 'Минимальная ставка должна быть не менее 1', 'error');
         return;
       }
 
       const deck = createDeck();
       const roomId = crypto.randomUUID ? crypto.randomUUID() : 'room_' + Date.now();
 
-      const { error } = await sb
+      console.log('Создаём комнату с ID:', roomId);
+      console.log('Профиль:', profile);
+
+      const { data: createdRoom, error } = await sb
         .from('blackjack_rooms')
         .insert({
           id: roomId,
@@ -229,11 +258,18 @@ const BJ = (() => {
           dealer_hand: JSON.stringify([]),
           dealer_score: 0,
           round_number: 0,
-        });
+        })
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Ошибка вставки комнаты:', error);
+        showMessage('bjLobbyMsg', `Ошибка создания комнаты: ${error.message}`, 'error');
+        return;
+      }
 
-      const { error: playerError } = await sb
+      console.log('Комната создана:', createdRoom);
+
+      const { data: playerData, error: playerError } = await sb
         .from('blackjack_players')
         .insert({
           room_id: roomId,
@@ -245,22 +281,29 @@ const BJ = (() => {
           result: null,
           winnings: 0,
           seat_position: 0,
-        });
+        })
+        .select();
 
-      if (playerError) throw playerError;
+      if (playerError) {
+        console.error('Ошибка вставки игрока:', playerError);
+        showMessage('bjLobbyMsg', `Ошибка добавления игрока: ${playerError.message}`, 'error');
+        return;
+      }
+
+      console.log('Игрок добавлен:', playerData);
 
       state.currentRoom = roomId;
       state.currentPlayer = profile.id;
 
-      showMessage('bjLobbyMsg', 'Room created! Waiting for players...', 'success');
+      showMessage('bjLobbyMsg', 'Комната создана! Ожидаем других игроков...', 'success');
       showLobby(false);
       showWaitingRoom(true);
       renderWaitingRoom(roomId);
 
       subscribeToRoom(roomId);
     } catch (error) {
-      console.error('Error creating room:', error);
-      showMessage('bjLobbyMsg', 'Error creating room', 'error');
+      console.error('Критическая ошибка создания комнаты:', error);
+      showMessage('bjLobbyMsg', `Критическая ошибка: ${error.message}`, 'error');
     }
   };
 
