@@ -20,8 +20,8 @@ body {
   margin: 0;
   font-family: "Space Grotesk", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   color: var(--text);
-  min-height: 100vh;
-  overflow: auto;
+  height: 100vh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   background:
@@ -56,12 +56,17 @@ main { animation: fadeUp 420ms ease both; }
   border: 1px solid rgba(255,255,255,0.12);
   background: rgba(255,255,255,0.06);
   box-shadow: 0 26px 70px rgba(0,0,0,0.62);
-  padding: 18px;
+  padding: 22px;
 }
-.disc-title { margin: 0 0 6px; font-size: 18px; font-weight: 1000; }
-.disc-text { color: rgba(233,237,247,0.78); font-size: 13px; line-height: 1.45; white-space: pre-wrap; }
+.disc-title { margin: 0 0 8px; font-size: 22px; font-weight: 1000; letter-spacing: -0.2px; }
+.disc-text { color: rgba(233,237,247,0.82); font-size: 15px; line-height: 1.6; white-space: pre-wrap; }
 .disc-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; justify-content: flex-end; }
-.disc-actions button { min-width: 140px; }
+.disc-actions button { min-width: 160px; padding: 12px 14px; border-radius: 14px; }
+@media (max-width: 520px) {
+  .disc-card { padding: 18px; }
+  .disc-title { font-size: 20px; }
+  .disc-text { font-size: 14px; }
+}
 
 header {
   position: sticky;
@@ -123,11 +128,11 @@ button:active { transform: translateY(1px) scale(0.99); }
 
 main {
   flex: 1 1 auto;
-  overflow: auto;
+  overflow: hidden;
 }
 main > .wrap {
-  min-height: 0;
-  overflow: visible;
+  height: 100%;
+  overflow: hidden;
 }
 
 .card {
@@ -142,7 +147,7 @@ main > .wrap {
 .card h3 { margin: 0 0 10px; font-size: 16px; }
 
 .view { display: none; }
-.view.active { display: block; overflow: visible; }
+.view.active { display: block; height: 100%; overflow: hidden; }
 
 /* Controls */
 .ctrl-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
@@ -342,6 +347,8 @@ main > .wrap {
   grid-template-columns: 320px 1fr;
   gap: 14px;
   align-items: start;
+  height: 100%;
+  min-height: 0;
 }
 @media (max-width: 940px) {
   .roulette-layout { grid-template-columns: 1fr; }
@@ -365,10 +372,15 @@ main > .wrap {
 }
 .chipv.active { border-color: rgba(255, 209, 102, 0.55); box-shadow: 0 0 0 3px rgba(255,209,102,0.14) inset; }
 
-.roulette-stage-wrap { display: grid; gap: 14px; }
+.roulette-stage-wrap {
+  display: grid;
+  gap: 14px;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+}
 
 .roulette-wheel {
-  width: min(360px, 46vh, 92vw);
+  width: min(460px, 42vh, 92vw);
   aspect-ratio: 1 / 1;
   margin: 0 auto;
   position: relative;
@@ -399,6 +411,9 @@ main > .wrap {
   font-weight: 1000;
   font-size: 11px;
   letter-spacing: -0.2px;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
   /* User asked for black text directly on the colors */
   color: rgba(0,0,0,0.92);
   text-shadow:
@@ -449,11 +464,12 @@ main > .wrap {
   border-radius: 16px;
   padding: 12px;
   overflow: hidden;
+  min-height: 0;
 }
 .roulette-table { display: grid; gap: 10px; }
 .rt-grid {
-  --z: 68px;
-  --c: 46px;
+  --z: clamp(46px, 6vh, 68px);
+  --c: clamp(34px, 5vh, 46px);
   display: grid;
   grid-template-columns: var(--z) repeat(12, var(--c));
   gap: 6px;

@@ -246,8 +246,9 @@
 
     const slot = 360 / POCKETS.length;
     const w = wheel ? wheel.getBoundingClientRect().width : 360;
-    // Place labels on the rim (inside the thick border).
-    const labelRadius = Math.max(96, w * 0.5 - Math.max(48, w * 0.28));
+    // Place labels on the rim (inside the thick border). Using a proportional radius is
+    // more stable than trying to infer CSS border widths.
+    const labelRadius = Math.max(86, w * 0.32);
 
     const stops = [];
     for (let i = 0; i < POCKETS.length; i += 1) {
@@ -281,7 +282,7 @@
     void rotor.offsetWidth;
 
     // Place ball at the top on initial render.
-    const outerR = Math.max(110, w * 0.5 - Math.max(22, w * 0.12));
+    const outerR = Math.max(104, w * 0.34);
     setWheelBall(0, outerR);
   }
 
@@ -304,15 +305,15 @@
     cancelAnimationFrame(ballRaf);
     const wheel = document.querySelector(".roulette-wheel");
     const w = wheel ? wheel.getBoundingClientRect().width : 360;
-    const outerR = Math.max(110, w * 0.5 - Math.max(22, w * 0.12));
-    const innerR = Math.max(88, outerR - Math.max(18, w * 0.10));
+    const outerR = Math.max(104, w * 0.34);
+    const innerR = Math.max(84, w * 0.28);
 
-    const spinsBall = 11 + Math.floor(Math.random() * 4);
+    const spinsBall = 12 + Math.floor(Math.random() * 4);
     const startAngle = spinsBall * 360 + Math.floor(Math.random() * 180);
     const endAngle = 0;
 
     const t0 = performance.now();
-    const dropAt = 0.82; // last part: ball drops into the pocket ring
+    const dropAt = 0.78; // last part: ball drops into the pocket ring
 
     const frame = (now) => {
       const p = Math.min(1, Math.max(0, (now - t0) / Math.max(1, durationMs)));
@@ -508,8 +509,9 @@
     const rotor = qs("wheelRotor");
     const slot = 360 / POCKETS.length;
     const centerAngle = idx * slot + slot / 2;
-    const spins = 6 + Math.floor(Math.random() * 3);
-    const duration = 4200 + Math.floor(Math.random() * 600);
+    // Slower wheel spin; ball animation runs slightly faster (see animateWheelBall).
+    const spins = 4 + Math.floor(Math.random() * 3);
+    const duration = 5600 + Math.floor(Math.random() * 700);
 
     const targetDeg = (STATE.roulette.wheelDeg || 0) + spins * 360 - centerAngle;
     STATE.roulette.wheelDeg = targetDeg;
