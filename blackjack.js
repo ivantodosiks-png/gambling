@@ -13,34 +13,44 @@ const BJ = (() => {
     try {
       // Получаем текущего пользователя из localStorage
       const storedUser = localStorage.getItem('gambling_current_user');
+      console.log('📦 storedUser из localStorage:', storedUser);
+      
       if (!storedUser) {
-        console.error('Пользователь не авторизован');
+        console.error('❌ Пользователь не авторизован (нет в localStorage)');
         return null;
       }
 
       const currentUser = JSON.parse(storedUser);
+      console.log('👤 currentUser:', currentUser);
+      
       if (!currentUser.id) {
-        console.error('Нет ID пользователя');
+        console.error('❌ Нет ID пользователя');
         return null;
       }
 
+      console.log('🔍 Ищем профиль для user_id:', currentUser.id);
+
       // Получаем профиль из Supabase
-      let { data: profile, error } = await sb
+      const { data: profile, error } = await sb
         .from('profiles')
         .select('*')
         .eq('id', currentUser.id)
         .single();
 
+      console.log('📊 Результат запроса profiles:', { profile, error });
+
       // Если профиль не найден, создаём его
       if (error || !profile) {
-        console.log('Профиль не найден, создаём новый...');
+        console.warn('⚠️ Профиль не найден, создаём новый...');
         
         const newProfile = {
           id: currentUser.id,
-          email: currentUser.email || '',
+          email: currentUser.email || 'unknown@email.com',
           username: currentUser.username || 'Player',
           balance: 5000,
         };
+
+        console.log('➕ Создаём новый профиль:', newProfile);
 
         const { data: created, error: insertError } = await sb
           .from('profiles')
@@ -48,23 +58,28 @@ const BJ = (() => {
           .select()
           .single();
 
+        console.log('➕ Результат вставки:', { created, insertError });
+
         if (insertError) {
-          console.error('Ошибка создания профиля:', insertError);
+          console.error('❌ Ошибка создания профиля:', insertError);
           // Пробуем ещё раз получить профиль (может быть конфликт)
           const { data: existing } = await sb
             .from('profiles')
             .select('*')
             .eq('id', currentUser.id)
             .single();
+          console.log('🔄 Повторный запрос профиля:', existing);
           return existing || null;
         }
 
+        console.log('✅ Профиль создан успешно:', created);
         return created;
       }
       
+      console.log('✅ Профиль найден:', profile);
       return profile;
     } catch (error) {
-      console.error('Ошибка в getProfile:', error);
+      console.error('❌ Критическая ошибка в getProfile:', error);
       return null;
     }
   };
@@ -240,7 +255,12 @@ const BJ = (() => {
   // ============ ROOM FUNCTIONS ============
   const createRoom = async () => {
     try {
+      console.log('🚀 Начинаем создание комнаты...');
+      console.log('sb доступен?', !!sb);
+      
       const profile = await getProfile();
+      console.log('📋 getProfile вернул:', profile);
+      
       if (!profile) {
         showMessage('bjLobbyMsg', 'Ошибка: не удалось получить профиль. Перезагрузитесь.', 'error');
         return;
@@ -255,8 +275,7 @@ const BJ = (() => {
       const deck = createDeck();
       const roomId = crypto.randomUUID ? crypto.randomUUID() : 'room_' + Date.now();
 
-      console.log('Создаём комнату с ID:', roomId);
-      console.log('Профиль:', profile);
+      console.log('🎲 Созданы параметры комнаты:', { roomId, minBet, hostId: profile.id });
 
       const { data: createdRoom, error } = await sb
         .from('blackjack_rooms')
@@ -274,13 +293,15 @@ const BJ = (() => {
         })
         .select();
 
+      console.log('📤 Ответ insert blackjack_rooms:', { createdRoom, error });
+
       if (error) {
-        console.error('Ошибка вставки комнаты:', error);
+        console.error('❌ Ошибка вставки комнаты:', error);
         showMessage('bjLobbyMsg', `Ошибка создания комнаты: ${error.message}`, 'error');
         return;
       }
 
-      console.log('Комната создана:', createdRoom);
+      console.log('✅ Комната создана:', createdRoom);
 
       const { data: playerData, error: playerError } = await sb
         .from('blackjack_players')
@@ -297,25 +318,27 @@ const BJ = (() => {
         })
         .select();
 
+      console.log('📤 Ответ insert blackjack_players:', { playerData, playerError });
+
       if (playerError) {
-        console.error('Ошибка вставки игрока:', playerError);
+        console.error('❌ Ошибка вставки игрока:', playerError);
         showMessage('bjLobbyMsg', `Ошибка добавления игрока: ${playerError.message}`, 'error');
         return;
       }
 
-      console.log('Игрок добавлен:', playerData);
+      console.log('✅ Игрок добавлен:', playerData);
 
       state.currentRoom = roomId;
       state.currentPlayer = profile.id;
 
-      showMessage('bjLobbyMsg', 'Комната создана! Ожидаем других игроков...', 'success');
+      showMessage('bjLobbyMsg', '✅ Комната создана! Ожидаем других игроков...', 'success');
       showLobby(false);
       showWaitingRoom(true);
       renderWaitingRoom(roomId);
 
       subscribeToRoom(roomId);
     } catch (error) {
-      console.error('Критическая ошибка создания комнаты:', error);
+      console.error('❌ Критическая ошибка создания комнаты:', error);
       showMessage('bjLobbyMsg', `Критическая ошибка: ${error.message}`, 'error');
     }
   };
@@ -991,9 +1014,16 @@ const BJ = (() => {
   };
 
   // ============ INITIALIZATION ============
-  const init = () => {
-    console.log('🎰 Инициализация Blackjack...');
-    console.log('sb объект есть?', !!sb);
+  const init = async () => {
+    console.log('🎰 ============ ИНИЦИАЛИЗАЦИЯ BLACKJACK ============');
+    console.log('✅ window.sb доступен?', !!window.sb);
+    console.log('✅ sb объект:', window.sb);
+    
+    if (!window.sb) {
+      console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: sb не инициализирован! Проверьте supabase-config.js');
+      showMessage('bjLobbyMsg', 'Ошибка: Supabase не инициализирован', 'error');
+      return;
+    }
     
     document.getElementById('bjCreateRoomBtn')?.addEventListener('click', createRoom);
     document.getElementById('bjJoinRoomBtn')?.addEventListener('click', joinRoomByInput);
@@ -1007,13 +1037,15 @@ const BJ = (() => {
 
     console.log('✅ Обработчики событий установлены');
     
-    renderRoomsList();
+    console.log('📋 Загружаем список комнат...');
+    await renderRoomsList();
     setInterval(renderRoomsList, 3000);
 
-    updateBalance();
+    console.log('💰 Загружаем баланс...');
+    await updateBalance();
     setInterval(updateBalance, 3000);
     
-    console.log('🎮 Blackjack готов к работе!');
+    console.log('🎮 ============ BLACKJACK ГОТОВ! ============');
   };
 
   const updateBalance = async () => {
