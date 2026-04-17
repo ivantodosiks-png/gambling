@@ -252,7 +252,7 @@
     const w = wheel ? wheel.getBoundingClientRect().width : 360;
     // Place labels on the rim (inside the thick border). Using a proportional radius is
     // more stable than trying to infer CSS border widths.
-    const labelRadius = Math.max(86, w * 0.32);
+    const labelRadius = Math.max(100, w * 0.35);
 
     const stops = [];
     for (let i = 0; i < POCKETS.length; i += 1) {
@@ -524,17 +524,25 @@
 
     setBalance(STATE.balance - totalBet);
 
-    const idx = Math.floor(Math.random() * POCKETS.length);
-    const rolled = POCKETS[idx];
-
     const rotor = qs("wheelRotor");
     const slot = 360 / POCKETS.length;
-    const centerAngle = idx * slot + slot / 2;
+    
+    // Generate a random final angle where the ball will land (0-360 degrees)
+    // This determines which pocket wins
+    const finalBallAngle = Math.random() * 360;
+    
+    // Determine which pocket this angle corresponds to
+    // Pocket 0 is centered at 0 degrees, pocket 1 at slot degrees, etc.
+    const pocketIdxAtAngle = Math.floor((finalBallAngle + slot / 2) / slot) % POCKETS.length;
+    const rolled = POCKETS[pocketIdxAtAngle];
+
     // Slower wheel spin; ball animation runs slightly faster (see animateWheelBall).
     const spins = 4 + Math.floor(Math.random() * 3);
     const duration = 5600 + Math.floor(Math.random() * 700);
 
-    const targetDeg = (STATE.roulette.wheelDeg || 0) + spins * 360 - centerAngle;
+    // Rotate wheel so that the winning pocket appears where the ball will land
+    // Ball lands at angle 0, so we need to rotate the wheel to align the winning pocket there
+    const targetDeg = (STATE.roulette.wheelDeg || 0) + spins * 360 - finalBallAngle;
     STATE.roulette.wheelDeg = targetDeg;
 
     // Tick sound while spinning (simple interval)

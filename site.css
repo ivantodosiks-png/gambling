@@ -456,7 +456,7 @@ main > .wrap {
 }
 
 .roulette-wheel {
-  width: min(420px, 30vh, 92vw);
+  width: min(600px, 50vh, 92vw);
   aspect-ratio: 1 / 1;
   margin: 0 auto;
   position: relative;
@@ -525,27 +525,27 @@ main > .wrap {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 22px;
-  height: 22px;
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
   display: grid;
   place-items: center;
   font-weight: 1000;
-  font-size: 11px;
+  font-size: 16px;
   letter-spacing: -0.2px;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
   /* Minimal: plain text on segments */
   color: rgba(0,0,0,0.92);
-  text-shadow: 0 1px 0 rgba(255,255,255,0.18);
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
   background: transparent;
   pointer-events: none;
   user-select: none;
 }
 .wheel-label.green { color: rgba(0,0,0,0.92); }
-.wheel-label.red { color: rgba(0,0,0,0.92); }
-.wheel-label.black { color: rgba(255,255,255,0.94); text-shadow: 0 1px 0 rgba(0,0,0,0.55); }
+.wheel-label.red { color: rgba(255,255,255,0.95); text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+.wheel-label.black { color: rgba(255,255,255,0.94); text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
 
 .wheel-ball {
   position: absolute;
