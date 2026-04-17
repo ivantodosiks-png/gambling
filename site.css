@@ -20,8 +20,8 @@ body {
   margin: 0;
   font-family: "Space Grotesk", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   color: var(--text);
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
+  overflow: auto;
   display: flex;
   flex-direction: column;
   background:
@@ -35,6 +35,33 @@ main { animation: fadeUp 420ms ease both; }
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Disclaimer modal */
+.disc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background:
+    radial-gradient(1200px 700px at 18% 0%, rgba(255, 209, 102, 0.10), transparent 60%),
+    radial-gradient(900px 540px at 90% 20%, rgba(125, 211, 252, 0.10), transparent 55%),
+    rgba(7,10,20,0.92);
+  backdrop-filter: blur(10px);
+}
+.disc-card {
+  width: min(760px, 100%);
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  box-shadow: 0 26px 70px rgba(0,0,0,0.62);
+  padding: 18px;
+}
+.disc-title { margin: 0 0 6px; font-size: 18px; font-weight: 1000; }
+.disc-text { color: rgba(233,237,247,0.78); font-size: 13px; line-height: 1.45; white-space: pre-wrap; }
+.disc-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; justify-content: flex-end; }
+.disc-actions button { min-width: 140px; }
 
 header {
   position: sticky;
@@ -96,11 +123,11 @@ button:active { transform: translateY(1px) scale(0.99); }
 
 main {
   flex: 1 1 auto;
-  overflow: hidden;
+  overflow: auto;
 }
 main > .wrap {
-  height: 100%;
-  overflow: hidden;
+  min-height: 0;
+  overflow: visible;
 }
 
 .card {
@@ -115,7 +142,7 @@ main > .wrap {
 .card h3 { margin: 0 0 10px; font-size: 16px; }
 
 .view { display: none; }
-.view.active { display: block; height: 100%; overflow: hidden; }
+.view.active { display: block; overflow: visible; }
 
 /* Controls */
 .ctrl-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
@@ -341,7 +368,7 @@ main > .wrap {
 .roulette-stage-wrap { display: grid; gap: 14px; }
 
 .roulette-wheel {
-  width: min(360px, 92vw);
+  width: min(360px, 46vh, 92vw);
   aspect-ratio: 1 / 1;
   margin: 0 auto;
   position: relative;
@@ -364,40 +391,41 @@ main > .wrap {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 26px;
-  height: 26px;
-  border-radius: 9px;
+  width: 22px;
+  height: 22px;
+  border-radius: 8px;
   display: grid;
   place-items: center;
   font-weight: 1000;
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: -0.2px;
-  color: rgba(233,237,247,0.98);
-  text-shadow: 0 10px 18px rgba(0,0,0,0.85);
-  box-shadow: 0 14px 22px rgba(0,0,0,0.35);
-}
-.wheel-label.green { color: #07110c; background: rgba(51,209,143,0.92); border: 1px solid rgba(51,209,143,0.55); }
-.wheel-label.red { background: rgba(255,77,109,0.22); border: 1px solid rgba(255,77,109,0.35); }
-.wheel-label.black { background: rgba(22,26,43,0.70); border: 1px solid rgba(255,255,255,0.10); }
-
-.wheel-pointer {
-  position: absolute;
-  top: 6px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 18px;
-  height: 14px;
-  z-index: 6;
+  /* User asked for black text directly on the colors */
+  color: rgba(0,0,0,0.92);
+  text-shadow:
+    0 1px 0 rgba(255,255,255,0.20),
+    0 0 10px rgba(255,255,255,0.10);
+  background: transparent;
   pointer-events: none;
-  filter: drop-shadow(0 10px 14px rgba(0,0,0,0.6));
+  user-select: none;
 }
-.wheel-pointer:before {
-  content: "";
+.wheel-label.green { color: rgba(0,0,0,0.92); }
+.wheel-label.red { color: rgba(0,0,0,0.92); }
+.wheel-label.black { color: rgba(0,0,0,0.92); }
+
+.wheel-ball {
   position: absolute;
-  inset: 0;
-  background: rgba(255, 209, 102, 0.98);
-  clip-path: polygon(50% 100%, 0 0, 100% 0);
-  border-radius: 3px;
+  left: 50%;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  z-index: 7;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,0.95), rgba(255,255,255,0.25) 28%, rgba(255,255,255,0.08) 45%, rgba(0,0,0,0.85) 70%),
+    #cfd6e6;
+  box-shadow: 0 16px 26px rgba(0,0,0,0.55);
+  transform: translate(-50%, calc(-50% - 140px));
 }
 .wheel-hub {
   position: absolute;

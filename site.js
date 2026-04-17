@@ -247,14 +247,20 @@
     const slot = 360 / POCKETS.length;
     const w = wheel ? wheel.getBoundingClientRect().width : 360;
     // Place labels on the rim (inside the thick border).
-    const labelRadius = Math.max(108, w * 0.5 - Math.max(42, w * 0.22));
+    const labelRadius = Math.max(96, w * 0.5 - Math.max(48, w * 0.28));
 
     const stops = [];
     for (let i = 0; i < POCKETS.length; i += 1) {
       const p = POCKETS[i];
       const start = i * slot;
       const end = (i + 1) * slot;
-      const col = p.c === "red" ? "rgba(255,77,109,0.98)" : p.c === "black" ? "rgba(22,26,43,0.98)" : "rgba(51,209,143,0.98)";
+      // Slightly lift "black" so dark text is still readable (user request).
+      const col =
+        p.c === "red"
+          ? "rgba(255,77,109,0.98)"
+          : p.c === "black"
+            ? "rgba(52,58,78,0.98)"
+            : "rgba(51,209,143,0.98)";
       stops.push(`${col} ${start}deg ${end}deg`);
     }
     ring.style.background = `conic-gradient(from -90deg, ${stops.join(",")})`;
@@ -262,7 +268,7 @@
     labels.innerHTML = "";
     for (let i = 0; i < POCKETS.length; i += 1) {
       const p = POCKETS[i];
-      const a = i * slot;
+      const a = i * slot + slot / 2;
       const d = document.createElement("div");
       d.className = `wheel-label ${p.c}`;
       d.textContent = String(p.n);
@@ -273,6 +279,63 @@
     rotor.style.transition = "none";
     rotor.style.transform = `rotate(${STATE.roulette.wheelDeg || 0}deg)`;
     void rotor.offsetWidth;
+
+    // Place ball at the top on initial render.
+    const outerR = Math.max(110, w * 0.5 - Math.max(22, w * 0.12));
+    setWheelBall(0, outerR);
+  }
+
+  let ballRaf = 0;
+  function setWheelBall(angleDeg, radiusPx) {
+    const ball = qs("wheelBall");
+    if (!ball) return;
+    const a = (Number(angleDeg) || 0) * (Math.PI / 180);
+    const r = Number(radiusPx) || 0;
+    const x = Math.sin(a) * r;
+    const y = -Math.cos(a) * r;
+    ball.style.transform = `translate(-50%, -50%) translate(${x.toFixed(2)}px, ${y.toFixed(2)}px)`;
+  }
+
+  function easeOutCubic(t) {
+    return 1 - Math.pow(1 - t, 3);
+  }
+
+  function animateWheelBall(durationMs) {
+    cancelAnimationFrame(ballRaf);
+    const wheel = document.querySelector(".roulette-wheel");
+    const w = wheel ? wheel.getBoundingClientRect().width : 360;
+    const outerR = Math.max(110, w * 0.5 - Math.max(22, w * 0.12));
+    const innerR = Math.max(88, outerR - Math.max(18, w * 0.10));
+
+    const spinsBall = 11 + Math.floor(Math.random() * 4);
+    const startAngle = spinsBall * 360 + Math.floor(Math.random() * 180);
+    const endAngle = 0;
+
+    const t0 = performance.now();
+    const dropAt = 0.82; // last part: ball drops into the pocket ring
+
+    const frame = (now) => {
+      const p = Math.min(1, Math.max(0, (now - t0) / Math.max(1, durationMs)));
+      const e = easeOutCubic(p);
+
+      // Ball runs opposite direction (looks more "real").
+      const ang = startAngle * (1 - e) + endAngle * e;
+
+      let r = outerR;
+      if (p > dropAt) {
+        const t = (p - dropAt) / (1 - dropAt);
+        const ee = easeOutCubic(t);
+        // Add a tiny bounce at the end of the drop.
+        const bounce = Math.sin(Math.min(1, t) * Math.PI) * 2.5;
+        r = outerR * (1 - ee) + innerR * ee + bounce;
+      }
+
+      setWheelBall(ang, r);
+
+      if (p < 1) ballRaf = requestAnimationFrame(frame);
+      else setWheelBall(0, innerR);
+    };
+    ballRaf = requestAnimationFrame(frame);
   }
 
   function makeBetButton(text, betKey, extraClass) {
@@ -458,6 +521,7 @@
       rotor.style.transition = `transform ${duration}ms cubic-bezier(0.08, 0.78, 0.10, 1)`;
       rotor.style.transform = `rotate(${targetDeg}deg)`;
     }
+    animateWheelBall(duration);
 
     await new Promise((r) => setTimeout(r, duration + 40));
     clearInterval(tickInterval);
@@ -778,6 +842,48 @@
 
     STATE.user = await requireAuth();
     if (!STATE.user) return;
+
+    async function ensureDisclaimerAccepted() {
+      const key = "ivan_disclaimer_v1";
+      try {
+        if (localStorage.getItem(key) === "1") return true;
+      } catch {}
+
+      return await new Promise((resolve) => {
+        const overlay = document.createElement("div");
+        overlay.className = "disc-overlay";
+        overlay.innerHTML = `
+          <div class="disc-card" role="dialog" aria-modal="true" aria-label="Disclaimer">
+            <h2 class="disc-title">Disclaimer</h2>
+            <div class="disc-text">
+This is a demo / simulator. It is NOT a real casino.
+No real money is used. Everything is virtual coins for entertainment only.
+
+By clicking Accept, you confirm you understand this.
+            </div>
+            <div class="disc-actions">
+              <button type="button" id="discAcceptBtn">Accept</button>
+            </div>
+          </div>
+        `;
+
+        document.body.appendChild(overlay);
+        const prevOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+
+        const btn = overlay.querySelector("#discAcceptBtn");
+        btn.addEventListener("click", () => {
+          try {
+            localStorage.setItem(key, "1");
+          } catch {}
+          overlay.remove();
+          document.body.style.overflow = prevOverflow;
+          resolve(true);
+        });
+      });
+    }
+
+    await ensureDisclaimerAccepted();
 
     setUserId(STATE.user.id);
 
