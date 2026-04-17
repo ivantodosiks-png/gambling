@@ -24,7 +24,10 @@
             <h2 style="margin:0 0 6px;">Ты вошёл</h2>
             <div class="muted">Эта страница защищена: без сессии сюда не пускает.</div>
           </div>
-          <button id="logoutBtn">Logout</button>
+          <div class="row" style="justify-content:flex-end;">
+            <button id="toSiteBtn" style="background: rgba(255,255,255,0.08); color:#e9edf7; border: 1px solid rgba(255,255,255,0.14);">Перейти на сайт</button>
+            <button id="logoutBtn">Logout</button>
+          </div>
         </div>
         <hr style="border:0;border-top:1px solid rgba(255,255,255,0.12);margin:18px 0;">
         <div class="muted">Email:</div>
@@ -80,8 +83,18 @@
             profileStatus.textContent = `OK: ${profile.email} | balance=${profile.balance} | ${profile.created_at}`;
           }
         } catch (e) {
-          profileStatus.textContent = e?.message ? `Ошибка profiles: ${e.message}` : "Ошибка profiles";
+          const msg = e?.message || "";
+          if (msg.includes("column") && msg.includes("balance") && msg.includes("does not exist")) {
+            profileStatus.textContent =
+              "Нет колонки balance. Выполни в Supabase SQL Editor: ALTER TABLE public.profiles ADD COLUMN balance bigint NOT NULL DEFAULT 5000;";
+          } else {
+            profileStatus.textContent = msg ? `Ошибка profiles: ${msg}` : "Ошибка profiles";
+          }
         }
+
+        document.getElementById("toSiteBtn").addEventListener("click", () => {
+          window.location.href = "./site.html";
+        });
 
         document.getElementById("logoutBtn").addEventListener("click", async () => {
           await sb.auth.signOut();
@@ -95,4 +108,3 @@
     </script>
   </body>
 </html>
-

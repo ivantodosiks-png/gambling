@@ -133,7 +133,12 @@
             .order("created_at", { ascending: false });
 
           if (error) {
-            setStatus(`Ошибка загрузки: ${error.message}`, "err");
+            const msg = error.message || "";
+            if (msg.includes("column") && msg.includes("balance") && msg.includes("does not exist")) {
+              setStatus("Нет колонки balance. Выполни SQL: ALTER TABLE public.profiles ADD COLUMN balance bigint NOT NULL DEFAULT 5000;", "err");
+            } else {
+              setStatus(`Ошибка загрузки: ${msg}`, "err");
+            }
             return;
           }
           all = data || [];
@@ -171,4 +176,3 @@
     </script>
   </body>
 </html>
-

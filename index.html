@@ -131,7 +131,7 @@
           } else {
             const { error } = await window.sb.auth.signInWithPassword({ email, password });
             if (error) throw error;
-            window.location.href = "./dashboard.html";
+            window.location.href = "./site.html";
           }
         } catch (err) {
           setError(err?.message || "Ошибка");
@@ -146,8 +146,8 @@
         setError("Нет Supabase подключения. Проверь `supabase-config.js` и ключи.");
       } else {
         window.sb.auth.onAuthStateChange((_event, session) => {
-        if (session) window.location.href = "./dashboard.html";
-      });
+          if (session) window.location.href = "./site.html";
+        });
       }
     </script>
   </body>
