@@ -30,7 +30,7 @@
         <div class="row">
           <div>
             <h2 style="margin:0 0 4px;">Admin panel</h2>
-            <div class="muted">Список пользователей из `public.profiles` и изменение `balance`.</div>
+            <div class="muted">Список пользователей из <code>public.profiles</code> и изменение <code>balance</code>.</div>
           </div>
           <div class="row" style="justify-content:flex-end;">
             <button id="refreshBtn" class="secondary" type="button">Refresh</button>
@@ -61,112 +61,113 @@
 
     <script src="/supabase-config.js"></script>
     <script src="./supabase-config.js"></script>
-    <script type="module">
-      import { supabase } from "./supabase.js";
-
-      const statusEl = document.getElementById("status");
-      const rowsEl = document.getElementById("rows");
-      const searchEl = document.getElementById("search");
-      const refreshBtn = document.getElementById("refreshBtn");
-      const logoutBtn = document.getElementById("logoutBtn");
-
-      function setStatus(text, kind = "muted") {
-        statusEl.textContent = text;
-        statusEl.className = kind === "err" ? "muted err" : kind === "ok" ? "muted ok" : "muted";
-      }
-
-      async function requireAuth() {
-        const { data } = await supabase.auth.getSession();
-        if (!data.session) {
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="./supabase.js"></script>
+    <script>
+      (async () => {
+        const sb = window.sb;
+        if (!sb) {
           window.location.href = "./index.html";
-          return null;
-        }
-        return data.session.user;
-      }
-
-      const user = await requireAuth();
-      if (!user) throw new Error("No session");
-
-      // Проверяем что это админ (функция is_admin из SQL)
-      const { data: isAdmin, error: adminErr } = await supabase.rpc("is_admin");
-      if (adminErr) {
-        setStatus(`Ошибка is_admin: ${adminErr.message}`, "err");
-        throw adminErr;
-      }
-      if (!isAdmin) {
-        setStatus("Нет доступа. Добавь себя в таблицу public.admins (SQL Editor).", "err");
-        rowsEl.innerHTML = "";
-        throw new Error("Not admin");
-      }
-
-      setStatus("OK: admin", "ok");
-
-      let all = [];
-
-      function render() {
-        const q = searchEl.value.trim().toLowerCase();
-        const list = q
-          ? all.filter((p) => String(p.id).toLowerCase().includes(q) || String(p.email).toLowerCase().includes(q))
-          : all;
-
-        rowsEl.innerHTML = "";
-        for (const p of list) {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td><code>${p.id}</code></td>
-            <td>${p.email || "-"}</td>
-            <td>
-              <input data-id="${p.id}" class="bal" type="number" step="1" value="${Number(p.balance ?? 0)}" />
-            </td>
-            <td><span class="pill">${p.created_at ? new Date(p.created_at).toLocaleString() : "-"}</span></td>
-            <td><button data-id="${p.id}" class="save" type="button">Save</button></td>
-          `;
-          rowsEl.appendChild(tr);
-        }
-      }
-
-      async function load() {
-        setStatus("Загружаю пользователей...");
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("id,email,balance,created_at")
-          .order("created_at", { ascending: false });
-
-        if (error) {
-          setStatus(`Ошибка загрузки: ${error.message}`, "err");
           return;
         }
-        all = data || [];
-        setStatus(`Пользователей: ${all.length}`, "ok");
-        render();
-      }
 
-      rowsEl.addEventListener("click", async (e) => {
-        const btn = e.target?.closest?.("button.save");
-        if (!btn) return;
-        const id = btn.getAttribute("data-id");
-        const input = rowsEl.querySelector(`input.bal[data-id="${id}"]`);
-        const balance = Number(input?.value ?? 0);
-        if (!Number.isFinite(balance) || balance < 0) return setStatus("Balance должен быть числом >= 0", "err");
+        const statusEl = document.getElementById("status");
+        const rowsEl = document.getElementById("rows");
+        const searchEl = document.getElementById("search");
+        const refreshBtn = document.getElementById("refreshBtn");
+        const logoutBtn = document.getElementById("logoutBtn");
 
-        btn.disabled = true;
-        const { error } = await supabase.from("profiles").update({ balance }).eq("id", id);
-        btn.disabled = false;
+        function setStatus(text, kind = "muted") {
+          statusEl.textContent = text;
+          statusEl.className = kind === "err" ? "muted err" : kind === "ok" ? "muted ok" : "muted";
+        }
 
-        if (error) return setStatus(`Ошибка update: ${error.message}`, "err");
-        setStatus("Сохранено", "ok");
-        const idx = all.findIndex((x) => x.id === id);
-        if (idx >= 0) all[idx].balance = balance;
-      });
+        const { data } = await sb.auth.getSession();
+        if (!data.session) {
+          window.location.href = "./index.html";
+          return;
+        }
 
-      searchEl.addEventListener("input", render);
-      refreshBtn.addEventListener("click", load);
-      logoutBtn.addEventListener("click", async () => {
-        await supabase.auth.signOut();
-        window.location.href = "./index.html";
-      });
+        const { data: isAdmin, error: adminErr } = await sb.rpc("is_admin");
+        if (adminErr) {
+          setStatus(`Ошибка is_admin: ${adminErr.message}`, "err");
+          return;
+        }
+        if (!isAdmin) {
+          setStatus("Нет доступа. Добавь себя в таблицу public.admins (SQL Editor).", "err");
+          rowsEl.innerHTML = "";
+          return;
+        }
 
-      await load();
+        setStatus("OK: admin", "ok");
+
+        let all = [];
+
+        function render() {
+          const q = searchEl.value.trim().toLowerCase();
+          const list = q
+            ? all.filter((p) => String(p.id).toLowerCase().includes(q) || String(p.email).toLowerCase().includes(q))
+            : all;
+
+          rowsEl.innerHTML = "";
+          for (const p of list) {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td><code>${p.id}</code></td>
+              <td>${p.email || "-"}</td>
+              <td>
+                <input data-id="${p.id}" class="bal" type="number" step="1" value="${Number(p.balance ?? 0)}" />
+              </td>
+              <td><span class="pill">${p.created_at ? new Date(p.created_at).toLocaleString() : "-"}</span></td>
+              <td><button data-id="${p.id}" class="save" type="button">Save</button></td>
+            `;
+            rowsEl.appendChild(tr);
+          }
+        }
+
+        async function load() {
+          setStatus("Загружаю пользователей...");
+          const { data, error } = await sb
+            .from("profiles")
+            .select("id,email,balance,created_at")
+            .order("created_at", { ascending: false });
+
+          if (error) {
+            setStatus(`Ошибка загрузки: ${error.message}`, "err");
+            return;
+          }
+          all = data || [];
+          setStatus(`Пользователей: ${all.length}`, "ok");
+          render();
+        }
+
+        rowsEl.addEventListener("click", async (e) => {
+          const btn = e.target?.closest?.("button.save");
+          if (!btn) return;
+          const id = btn.getAttribute("data-id");
+          const input = rowsEl.querySelector(`input.bal[data-id="${id}"]`);
+          const balance = Number(input?.value ?? 0);
+          if (!Number.isFinite(balance) || balance < 0) return setStatus("Balance должен быть числом >= 0", "err");
+
+          btn.disabled = true;
+          const { error } = await sb.from("profiles").update({ balance }).eq("id", id);
+          btn.disabled = false;
+
+          if (error) return setStatus(`Ошибка update: ${error.message}`, "err");
+          setStatus("Сохранено", "ok");
+          const idx = all.findIndex((x) => x.id === id);
+          if (idx >= 0) all[idx].balance = balance;
+        });
+
+        searchEl.addEventListener("input", render);
+        refreshBtn.addEventListener("click", load);
+        logoutBtn.addEventListener("click", async () => {
+          await sb.auth.signOut();
+          window.location.href = "./index.html";
+        });
+
+        await load();
+      })();
     </script>
   </body>
 </html>

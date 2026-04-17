@@ -1,13 +1,23 @@
-// 1) URL и ANON KEY берутся из /supabase-config.js (он генерится из .env сервером server.js)
-// 2) Для Vercel/статики вставь ключи в supabase-config.js (НЕ service_role key!)
+// Supabase client for plain HTML (no modules).
+// Требования:
+// - подключи UMD SDK ДО этого файла:
+//   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+// - загрузи ключи в window.__SUPABASE__ (через /supabase-config.js или ./supabase-config.js)
 
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+(function () {
+  const cfg = window.__SUPABASE__ || { url: "", anonKey: "" };
 
-const cfg = window.__SUPABASE__ || { url: "", anonKey: "" };
+  if (!window.supabase || typeof window.supabase.createClient !== "function") {
+    console.error("Supabase SDK not loaded. Check supabase UMD script tag.");
+    window.sb = null;
+    return;
+  }
 
-if (!cfg.url || !cfg.anonKey) {
-  // Чтобы новичку было понятно почему ничего не работает.
-  console.warn("Supabase config missing. Set SUPABASE_URL and SUPABASE_ANON_KEY in .env");
-}
+  if (!cfg.url || !cfg.anonKey) {
+    console.warn("Supabase config missing. Fill url/anonKey in supabase-config.js (or .env via server.js).");
+    window.sb = null;
+    return;
+  }
 
-export const supabase = createClient(cfg.url, cfg.anonKey);
+  window.sb = window.supabase.createClient(cfg.url, cfg.anonKey);
+})();

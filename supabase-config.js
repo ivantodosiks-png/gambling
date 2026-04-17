@@ -6,7 +6,7 @@
 // и тогда этот файл НЕ перезапишет их.
 
 window.__SUPABASE__ = window.__SUPABASE__ || {
-  url: "", // <-- SUPABASE_URL
-  anonKey: "", // <-- SUPABASE_ANON_KEY
+  url: "https://ujiksdybdvzkctposela.supabase.co", // <-- SUPABASE_URL
+  anonKey:
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqaWtzZHliZHZ6a2N0cG9zZWxhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTI2MjYsImV4cCI6MjA5MTk2ODYyNn0.V6gRi6K4V2pg5pX7r568In-3OxuJOF1QLeOlInaD55M", // <-- SUPABASE_ANON_KEY
 };
-
