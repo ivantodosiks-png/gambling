@@ -241,9 +241,13 @@
     const ring = qs("wheelRing");
     const labels = qs("wheelLabels");
     const rotor = qs("wheelRotor");
+    const wheel = document.querySelector(".roulette-wheel");
     if (!ring || !labels || !rotor) return;
 
     const slot = 360 / POCKETS.length;
+    const w = wheel ? wheel.getBoundingClientRect().width : 360;
+    // Place labels on the rim (inside the thick border).
+    const labelRadius = Math.max(108, w * 0.5 - Math.max(42, w * 0.22));
 
     const stops = [];
     for (let i = 0; i < POCKETS.length; i += 1) {
@@ -262,7 +266,7 @@
       const d = document.createElement("div");
       d.className = `wheel-label ${p.c}`;
       d.textContent = String(p.n);
-      d.style.transform = `rotate(${a}deg) translateY(calc(-1 * var(--wheel-radius))) rotate(${-a}deg)`;
+      d.style.transform = `translate(-50%, -50%) rotate(${a}deg) translateY(-${labelRadius}px) rotate(${-a}deg)`;
       labels.appendChild(d);
     }
 
@@ -801,6 +805,13 @@
     renderRouletteBets();
     renderHistory();
     renderRouletteSummary();
+
+    // Rebuild wheel labels on resize so numbers stay aligned.
+    let wheelT = 0;
+    window.addEventListener("resize", () => {
+      clearTimeout(wheelT);
+      wheelT = setTimeout(() => buildWheel(), 120);
+    });
 
     setChipValue(STATE.roulette.chipValue || 10);
 
