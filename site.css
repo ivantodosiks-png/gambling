@@ -419,7 +419,7 @@ main > .wrap {
 /* New Roulette (wheel + betting table) */
 .roulette-layout {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 280px 1fr;
   gap: 14px;
   align-items: start;
   height: 100%;
@@ -451,12 +451,12 @@ main > .wrap {
 .roulette-stage-wrap {
   display: grid;
   gap: 12px;
-  grid-template-rows: minmax(0, 1.2fr) minmax(0, 0.9fr);
+  grid-template-rows: minmax(0, 0.8fr) minmax(0, 1.2fr);
   min-height: 0;
 }
 
 .roulette-wheel {
-  width: min(600px, 50vh, 92vw);
+  width: min(500px, 45vh, 92vw);
   aspect-ratio: 1 / 1;
   margin: 0 auto;
   position: relative;
@@ -600,8 +600,8 @@ main > .wrap {
 .roulette-table-wrap::-webkit-scrollbar { width: 0; height: 0; }
 .roulette-table { display: grid; gap: 10px; }
 .rt-grid {
-  --z: clamp(45px, 6vh, 65px);
-  --c: clamp(34px, 5vh, 48px);
+  --z: clamp(50px, 6.5vh, 70px);
+  --c: clamp(38px, 5.5vh, 52px);
   display: grid;
   grid-template-columns: var(--z) repeat(12, var(--c));
   gap: 5px;
