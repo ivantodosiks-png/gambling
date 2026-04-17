@@ -16,30 +16,7 @@ create table if not exists public.blackjack_rooms (
   updated_at timestamptz not null default now()
 );
 
-alter table public.blackjack_rooms enable row level security;
-
--- RLS: Anyone authenticated can read rooms (except finished ones older than 1 hour)
-drop policy if exists "rooms_select" on public.blackjack_rooms;
-create policy "rooms_select"
-on public.blackjack_rooms
-for select
-to authenticated
-using (true);
-
--- RLS: Host can delete/update
-drop policy if exists "rooms_update" on public.blackjack_rooms;
-create policy "rooms_update"
-on public.blackjack_rooms
-for update
-to authenticated
-using (host_id = auth.uid());
-
-drop policy if exists "rooms_delete" on public.blackjack_rooms;
-create policy "rooms_delete"
-on public.blackjack_rooms
-for delete
-to authenticated
-using (host_id = auth.uid());
+alter table public.blackjack_rooms disable row level security;
 
 -- 2) Blackjack Players (each user in a room)
 create table if not exists public.blackjack_players (
@@ -57,26 +34,7 @@ create table if not exists public.blackjack_players (
   updated_at timestamptz not null default now()
 );
 
-alter table public.blackjack_players enable row level security;
-
--- RLS: Players can see their own games and room games they're in
-drop policy if exists "players_select" on public.blackjack_players;
-create policy "players_select"
-on public.blackjack_players
-for select
-to authenticated
-using (player_id = auth.uid() or exists (
-  select 1 from public.blackjack_players bp2
-  where bp2.room_id = blackjack_players.room_id and bp2.player_id = auth.uid()
-));
-
--- RLS: Players can update their own rows
-drop policy if exists "players_update" on public.blackjack_players;
-create policy "players_update"
-on public.blackjack_players
-for update
-to authenticated
-using (player_id = auth.uid());
+alter table public.blackjack_players disable row level security;
 
 -- 3) Blackjack History (for analytics)
 create table if not exists public.blackjack_history (
@@ -90,15 +48,7 @@ create table if not exists public.blackjack_history (
   created_at timestamptz not null default now()
 );
 
-alter table public.blackjack_history enable row level security;
-
--- RLS: Players see only their own history
-drop policy if exists "history_select" on public.blackjack_history;
-create policy "history_select"
-on public.blackjack_history
-for select
-to authenticated
-using (player_id = auth.uid());
+alter table public.blackjack_history disable row level security;
 
 grant all on public.blackjack_rooms to authenticated;
 grant all on public.blackjack_players to authenticated;

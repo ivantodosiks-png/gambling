@@ -11,19 +11,34 @@ const BJ = (() => {
   // Helper function to get current user profile
   const getProfile = async () => {
     try {
-      const { data: { user } } = await sb.auth.getUser();
-      if (!user) return null;
+      // Получаем текущего пользователя из localStorage
+      const storedUser = localStorage.getItem('gambling_current_user');
+      if (!storedUser) {
+        console.error('Пользователь не авторизован');
+        return null;
+      }
 
+      const currentUser = JSON.parse(storedUser);
+      if (!currentUser.id) {
+        console.error('Нет ID пользователя');
+        return null;
+      }
+
+      // Получаем профиль из Supabase
       const { data: profile, error } = await sb
         .from('profiles')
         .select('*')
-        .eq('id', user.id)
+        .eq('id', currentUser.id)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Ошибка получения профиля:', error);
+        return null;
+      }
+      
       return profile;
     } catch (error) {
-      console.error('Error getting profile:', error);
+      console.error('Ошибка в getProfile:', error);
       return null;
     }
   };
