@@ -844,3 +844,406 @@ body.win-flash .roulette-wheel { box-shadow: 0 26px 60px rgba(0,0,0,0.55), var(-
 .roulette-layout { overflow: hidden; }
 #rouletteView .card { height: 100%; min-height: 0; display: flex; flex-direction: column; }
 #rouletteView .roulette-layout { flex: 1 1 auto; min-height: 0; }
+
+/* ============= BLACKJACK ============= */
+.bj-card { height: 100%; min-height: 0; display: flex; flex-direction: column; }
+.bj-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.bj-header h2 { font-size: 24px; font-weight: 700; }
+.bj-balance { display: flex; gap: 8px; }
+.bj-balance .pill {
+  padding: 6px 12px;
+  background: rgba(54, 211, 153, 0.15);
+  border: 1px solid rgba(54, 211, 153, 0.35);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--green);
+}
+
+.bj-container { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
+
+/* Lobby */
+.bj-lobby { flex: 1; display: flex; align-items: center; justify-content: center; }
+.bj-lobby-content {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.bj-lobby-content h3 { margin: 0; font-size: 18px; }
+.bj-form-group { display: flex; flex-direction: column; gap: 10px; }
+.bj-form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.bj-input-row {
+  display: flex;
+  gap: 8px;
+}
+.bj-input-row input {
+  flex: 1;
+  padding: 10px 12px;
+  background: var(--glass2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+}
+.bj-input-row input:focus {
+  outline: none;
+  background: var(--glass);
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 3px rgba(95, 227, 255, 0.10);
+}
+.bj-input-row input::placeholder { color: var(--muted); }
+.bj-divider {
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  position: relative;
+  margin: 10px 0;
+}
+.bj-divider::before {
+  content: "";
+  position: absolute;
+  inset: 50% 0;
+  height: 1px;
+  background: var(--line);
+  z-index: -1;
+}
+.bj-rooms-list {
+  padding: 16px;
+  background: var(--glass2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.bj-rooms-list h4 { margin: 0 0 12px; font-size: 13px; font-weight: 600; color: var(--muted); }
+#bjRoomsList { display: flex; flex-direction: column; gap: 8px; }
+.bj-room-item {
+  padding: 10px 12px;
+  background: var(--glass);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 200ms ease;
+}
+.bj-room-item:hover {
+  background: rgba(95, 227, 255, 0.08);
+  border-color: var(--cyan);
+}
+
+/* Game Table */
+.bj-table {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.bj-table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--glass2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  gap: 12px;
+}
+.bj-room-info {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+}
+.bj-room-info code {
+  font-family: monospace;
+  background: rgba(95, 227, 255, 0.10);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--cyan);
+}
+
+/* Dealer Area */
+.bj-dealer-area {
+  text-align: center;
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(54, 211, 153, 0.08), rgba(54, 211, 153, 0.04));
+  border: 2px solid rgba(54, 211, 153, 0.20);
+  border-radius: 12px;
+}
+.bj-dealer-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--green);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.bj-dealer-hand {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  min-height: 100px;
+  align-items: center;
+}
+.bj-score {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* Players Area */
+.bj-players-area {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin: 12px 0;
+}
+.bj-player-seat {
+  padding: 16px;
+  background: var(--glass);
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  text-align: center;
+  transition: all 200ms ease;
+}
+.bj-player-seat.active {
+  background: rgba(95, 227, 255, 0.12);
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 2px rgba(95, 227, 255, 0.15);
+}
+.bj-player-name {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+.bj-player-hand {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  min-height: 80px;
+  align-items: center;
+}
+.bj-player-info {
+  display: flex;
+  justify-content: space-around;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Card Display */
+.bj-card-item {
+  width: 60px;
+  height: 80px;
+  background: linear-gradient(135deg, #fff 0%, #f5f5f5 100%);
+  border: 2px solid #333;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 20px;
+  color: #333;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  animation: cardDeal 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+}
+.bj-card-item.red { color: #e74c3c; }
+.bj-card-item.black { color: #2c3e50; }
+.bj-card-item.hidden {
+  background: linear-gradient(135deg, #8b0000 0%, #dc143c 100%);
+  color: transparent;
+  border-color: #660000;
+}
+.bj-card-item.hidden::after {
+  content: "🂠";
+  position: absolute;
+  font-size: 32px;
+}
+@keyframes cardDeal {
+  from {
+    opacity: 0;
+    transform: translateY(-60px) rotateZ(-15deg) scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotateZ(0) scale(1);
+  }
+}
+
+/* Controls & Buttons */
+.bj-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--glass2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.bj-current-player-info {
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.bj-score-display {
+  font-size: 13px;
+  color: var(--muted);
+}
+.bj-button-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.bj-button-group button {
+  flex: 1;
+  min-width: 100px;
+}
+
+/* Betting Phase */
+.bj-betting-phase {
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(167, 139, 250, 0.10), rgba(95, 227, 255, 0.08));
+  border: 2px solid rgba(167, 139, 250, 0.25);
+  border-radius: 8px;
+  text-align: center;
+}
+.bj-betting-phase h4 { margin: 0 0 12px; font-size: 14px; font-weight: 600; }
+.bj-bet-controls {
+  display: flex;
+  gap: 8px;
+}
+.bj-bet-controls input {
+  flex: 1;
+  padding: 10px 12px;
+  background: var(--glass);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+}
+.bj-bet-controls button { flex: 1; min-width: 120px; }
+
+/* Waiting Room */
+.bj-waiting-room {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bj-waiting-content {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  text-align: center;
+}
+.bj-waiting-content h3 { margin: 0; font-size: 18px; }
+#bjWaitingPlayersList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  background: var(--glass2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.bj-player-waiting-item {
+  padding: 8px 12px;
+  background: var(--glass);
+  border-radius: 6px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bj-player-waiting-item.ready::before {
+  content: "✓";
+  color: var(--green);
+  font-weight: 700;
+}
+.bj-waiting-actions {
+  display: flex;
+  gap: 8px;
+  flex-direction: column;
+}
+.bj-waiting-actions button { width: 100%; }
+
+/* Messages */
+.msg {
+  padding: 12px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  display: none;
+  animation: slideDown 300ms ease;
+}
+.msg.show { display: block; }
+.msg.success {
+  background: rgba(54, 211, 153, 0.15);
+  border: 1px solid rgba(54, 211, 153, 0.35);
+  color: var(--green);
+}
+.msg.error {
+  background: rgba(255, 92, 122, 0.15);
+  border: 1px solid rgba(255, 92, 122, 0.35);
+  color: var(--red);
+}
+.msg.info {
+  background: rgba(95, 227, 255, 0.15);
+  border: 1px solid rgba(95, 227, 255, 0.35);
+  color: var(--cyan);
+}
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .bj-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .bj-balance { width: 100%; }
+  .bj-table { padding: 12px; gap: 12px; }
+  .bj-players-area { grid-template-columns: 1fr; }
+  .bj-card-item { width: 50px; height: 70px; font-size: 16px; }
+  .bj-button-group { flex-direction: column; }
+  .bj-button-group button { min-width: auto; }
+  .bj-input-row { flex-direction: column; }
+}

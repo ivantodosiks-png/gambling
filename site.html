@@ -33,6 +33,7 @@
         <div class="tabs">
           <button id="tab_rouletteView" class="tab active" type="button">Roulette</button>
           <button id="tab_minesView" class="tab" type="button">Mines</button>
+          <button id="tab_blackjackView" class="tab" type="button">Multiplayer Blackjack</button>
         </div>
       </div>
     </header>
@@ -171,6 +172,115 @@
             </div>
           </div>
         </section>
+
+        <section id="blackjackView" class="view">
+          <div class="card bj-card">
+            <div class="bj-header">
+              <div>
+                <h2 style="margin:0 0 4px;">Multiplayer Blackjack</h2>
+                <div class="muted">Play against the dealer. Max 5 players per table.</div>
+              </div>
+              <div class="bj-balance">
+                <div class="pill">Balance: <span id="bjBalanceValue">0</span></div>
+              </div>
+            </div>
+
+            <div class="bj-container" id="bjContainer">
+              <!-- Room Lobby -->
+              <div id="bjLobby" class="bj-lobby">
+                <div class="bj-lobby-content">
+                  <h3>Blackjack Lobby</h3>
+                  
+                  <div class="bj-form-group">
+                    <label>Create New Room</label>
+                    <div class="bj-input-row">
+                      <input id="bjMinBetInput" type="number" placeholder="Min Bet" value="10" min="1" />
+                      <button id="bjCreateRoomBtn" class="primary-wide" type="button">Create Room</button>
+                    </div>
+                  </div>
+
+                  <div class="bj-divider">OR</div>
+
+                  <div class="bj-form-group">
+                    <label>Join Existing Room</label>
+                    <div class="bj-input-row">
+                      <input id="bjRoomIdInput" type="text" placeholder="Room ID" />
+                      <button id="bjJoinRoomBtn" class="primary-wide" type="button">Join Room</button>
+                    </div>
+                  </div>
+
+                  <div id="bjLobbyRooms" class="bj-rooms-list">
+                    <h4>Available Rooms</h4>
+                    <div id="bjRoomsList"></div>
+                  </div>
+
+                  <div id="bjLobbyMsg" class="msg"></div>
+                </div>
+              </div>
+
+              <!-- Game Table -->
+              <div id="bjTable" class="bj-table" style="display:none;">
+                <div class="bj-table-header">
+                  <div class="bj-room-info">
+                    <div>Room: <code id="bjCurrentRoomId">-</code></div>
+                    <div>Players: <span id="bjPlayerCount">0/5</span></div>
+                  </div>
+                  <button id="bjLeaveTableBtn" class="ghost" type="button">Leave Table</button>
+                </div>
+
+                <!-- Dealer Area -->
+                <div class="bj-dealer-area">
+                  <div class="bj-dealer-label">Dealer</div>
+                  <div class="bj-dealer-hand" id="bjDealerHand"></div>
+                  <div class="bj-score">Score: <span id="bjDealerScore">-</span></div>
+                </div>
+
+                <!-- Players Area -->
+                <div class="bj-players-area" id="bjPlayersArea"></div>
+
+                <!-- Current Player Controls -->
+                <div id="bjControls" class="bj-controls" style="display:none;">
+                  <div class="bj-current-player-info">
+                    <span id="bjCurrentPlayerName">You</span>'s turn
+                    <span class="bj-score-display">Score: <b id="bjCurrentPlayerScore">0</b></span>
+                  </div>
+                  <div class="bj-button-group">
+                    <button id="bjHitBtn" class="primary" type="button">Hit</button>
+                    <button id="bjStandBtn" class="primary" type="button">Stand</button>
+                    <button id="bjDoubleBtn" class="secondary" type="button">Double Down</button>
+                  </div>
+                </div>
+
+                <!-- Betting Phase -->
+                <div id="bjBettingPhase" class="bj-betting-phase" style="display:none;">
+                  <h4>Place Your Bet</h4>
+                  <div class="bj-bet-controls">
+                    <input id="bjBetInput" type="number" placeholder="Bet amount" min="10" />
+                    <button id="bjConfirmBetBtn" class="primary-wide" type="button">Confirm Bet</button>
+                  </div>
+                  <div id="bjBettingMsg" class="msg"></div>
+                </div>
+
+                <!-- Game Messages -->
+                <div id="bjGameMsg" class="msg"></div>
+              </div>
+
+              <!-- Waiting Room -->
+              <div id="bjWaitingRoom" class="bj-waiting-room" style="display:none;">
+                <h3>Waiting Room</h3>
+                <div class="bj-waiting-content">
+                  <div id="bjWaitingPlayersList"></div>
+                  <div class="bj-waiting-actions">
+                    <button id="bjStartGameBtn" class="primary-wide" type="button" style="display:none;">Start Game</button>
+                    <button id="bjReadyBtn" class="secondary-wide" type="button">Ready</button>
+                    <button id="bjWaitingLeaveBtn" class="ghost" type="button">Leave</button>
+                  </div>
+                  <div id="bjWaitingMsg" class="msg"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
     </main>
 
@@ -179,6 +289,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
     <script src="./supabase.js"></script>
     <script src="./maintenance.js"></script>
+    <script src="./blackjack.js"></script>
     <script src="./site.js"></script>
   </body>
 </html>
