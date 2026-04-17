@@ -294,7 +294,7 @@ main > .wrap {
 }
 .roulette-track { position: relative; z-index: 1; }
 .pocket {
-  width: 64px;
+  width: 76px;
   height: 74px;
   border-radius: 16px;
   display: grid;

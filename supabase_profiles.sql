@@ -61,6 +61,14 @@ for select
 to anon, authenticated
 using (username is not null and length(trim(username)) > 0);
 
+-- Анонимные пользователи могут видеть все профили (для лидерборда через RPC)
+drop policy if exists "profiles_select_anon" on public.profiles;
+create policy "profiles_select_anon"
+on public.profiles
+for select
+to anon
+using (true);
+
 -- Обновлять profiles может:
 -- - сам пользователь (свой профиль)
 -- - админ (любой профиль)
