@@ -1,4 +1,4 @@
-// Plain JS (no framework). Uses:
+﻿// Plain JS (no framework). Uses:
 // - window.sb (Supabase client from supabase.js)
 // - profiles table (id,email,balance,created_at)
 
@@ -64,7 +64,7 @@
   }
 
   function playTick(ms) {
-    // Small “tick” sound using WebAudio (no external assets).
+    // Small вЂњtickвЂќ sound using WebAudio (no external assets).
     try {
       const Ctx = window.AudioContext || window.webkitAudioContext;
       if (!Ctx) return;
@@ -197,43 +197,68 @@
   }
 
   function renderBetSelection() {
-    // Colors
     const bet = STATE.roulette.bet;
+
     for (const btn of document.querySelectorAll("[data-r-color]")) {
       btn.classList.toggle("active", bet.type === "color" && bet.value === btn.dataset.rColor);
     }
+
+    for (const btn of document.querySelectorAll("[data-r-number]")) {
+      const n = Number(btn.dataset.rNumber);
+      btn.classList.toggle("active", bet.type === "number" && bet.value === n);
+    }
+
     const label = bet.type === "color" ? "Color" : "Number";
     qs("rouletteBetType").textContent = label;
     qs("rouletteColorBox").style.display = bet.type === "color" ? "block" : "none";
     qs("rouletteNumberBox").style.display = bet.type === "number" ? "block" : "none";
   }
 
+  function centerTrackOnIndex(idx) {
+    const track = qs("rouletteTrack");
+    const windowEl = qs("rouletteWindow");
+    const markerX = windowEl.clientWidth / 2;
+    const pocketEl = track.children[idx];
+    const pocketCenter = (pocketEl?.offsetLeft || 0) + (pocketEl?.offsetWidth || 0) / 2;
+    const x = markerX - pocketCenter;
+    track.style.transition = "none";
+    track.style.transform = `translate3d(${x}px, 0, 0)`;
+    void track.offsetWidth;
+    return x;
+  }
   function buildTrack(targetPocket) {
     const track = qs("rouletteTrack");
     track.innerHTML = "";
 
-    // Create a long sequence so the animation looks “real”.
+    // Create a long sequence so the animation looks "real"
+    // and never reveals the "end" of the track.
     const seq = [];
-    for (let i = 0; i < 70; i += 1) {
-      const p = POCKETS[i % POCKETS.length];
-      seq.push(p);
+    for (let i = 0; i < 200; i += 1) {
+      seq.push(POCKETS[i % POCKETS.length]);
     }
 
     // Choose a stop index for the target that is deep enough in the list.
     const candidates = [];
-    for (let i = 25; i < seq.length; i += 1) {
-      if (seq[i].n === targetPocket.n) candidates.push(i);
+    for (let i = 90; i < seq.length - 20; i += 1) {
+      if (seq[i].n === targetPocket.n && seq[i].c === targetPocket.c) candidates.push(i);
     }
-    const stopIndex = candidates.length ? candidates[Math.floor(Math.random() * candidates.length)] : 30;
+    const stopIndex = candidates.length ? candidates[Math.floor(Math.random() * candidates.length)] : 120;
 
     for (const p of seq) {
       const d = document.createElement("div");
       d.className = `pocket ${p.c}`;
       d.textContent = String(p.n);
+      d.dataset.n = String(p.n);
+      d.dataset.c = p.c;
       track.appendChild(d);
     }
 
-    return { stopIndex };
+    // Start with something centered, so we have pockets visible
+    // "before" and "after" the marker.
+    const startIndex = 14;
+    const startX = centerTrackOnIndex(startIndex);
+
+    return { stopIndex, startIndex, startX };
   }
 
   function getPocketWidth() {
@@ -243,7 +268,6 @@
     const gap = Number.parseFloat(style.gap || style.columnGap || "10") || 10;
     return first.getBoundingClientRect().width + gap;
   }
-
   async function spinRoulette() {
     if (STATE.roulette.spinning) return;
     const msgEl = qs("rouletteMsg");
@@ -264,47 +288,76 @@
     const track = qs("rouletteTrack");
     const windowEl = qs("rouletteWindow");
 
-    // Reset transform
-    track.style.transition = "none";
-    track.style.transform = "translate3d(0,0,0)";
-    void track.offsetWidth;
-
     // Compute target X so the chosen pocket lands at the marker.
-    const itemW = getPocketWidth();
-    const centerX = windowEl.clientWidth / 2;
-    const pocketCenterX = itemW * stopIndex + itemW / 2 + 18; // padding-left in CSS
-    const targetX = centerX - pocketCenterX;
+    // Measure from DOM to avoid any rounding / gap differences across browsers.
+    const markerX = windowEl.clientWidth / 2;
+    const pocketEl = track.children[stopIndex];
+    const pocketCenter = (pocketEl?.offsetLeft || 0) + (pocketEl?.offsetWidth || 0) / 2;
+    const targetX = markerX - pocketCenter;
 
     // Animate (spin + decel)
     const duration = 3200 + Math.floor(Math.random() * 600);
     track.style.transition = `transform ${duration}ms cubic-bezier(0.08, 0.75, 0.12, 1)`;
     track.style.transform = `translate3d(${targetX}px, 0, 0)`;
 
-    // Tick sound while spinning (best-effort)
-    const tickInterval = setInterval(() => playTick(35), 180);
+    // Tick sound while spinning (based on visible pocket changes)
+    let lastTickKey = "";
+    const tickLoop = () => {
+      if (!STATE.roulette.spinning) return;
+      const windowRect = windowEl.getBoundingClientRect();
+      const markerAbs = windowRect.left + windowRect.width / 2;
+      let best = null;
+      for (let i = 0; i < track.children.length; i += 1) {
+        const el = track.children[i];
+        const r = el.getBoundingClientRect();
+        const cx = r.left + r.width / 2;
+        const dist = Math.abs(cx - markerAbs);
+        if (!best || dist < best.dist) best = { el, dist };
+      }
+      const key = best?.el ? `${best.el.dataset.n}_${best.el.dataset.c}` : "";
+      if (key && key !== lastTickKey) {
+        lastTickKey = key;
+        playTick(25);
+      }
+      requestAnimationFrame(tickLoop);
+    };
+    requestAnimationFrame(tickLoop);
 
-    await new Promise((r) => setTimeout(r, duration + 30));
-    clearInterval(tickInterval);
+    await new Promise((r) => setTimeout(r, duration + 35));
     playStop();
+
+    // Determine the actual pocket under the marker (source of truth).
+    // This prevents "it showed 8 but rolled 3" issues.
+    const windowRect = windowEl.getBoundingClientRect();
+    const markerAbs = windowRect.left + windowRect.width / 2;
+    let best = null;
+    for (let i = 0; i < track.children.length; i += 1) {
+      const el = track.children[i];
+      const r = el.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const dist = Math.abs(cx - markerAbs);
+      if (!best || dist < best.dist) best = { el, dist };
+    }
+    const rolled = best?.el ? { n: Number(best.el.dataset.n), c: best.el.dataset.c } : target;
 
     // Resolve bet
     const b = STATE.roulette.bet;
     let win = 0;
     if (b.type === "color") {
       const payout = PAYOUT.color[b.value] || 0;
-      if (target.c === b.value) win = bet * payout;
+      if (rolled.c === b.value) win = bet * payout;
     } else {
-      if (target.n === b.value) win = bet * PAYOUT.number;
+      if (rolled.n === b.value) win = bet * PAYOUT.number;
     }
 
     if (win > 0) {
       setBalance(STATE.balance + win);
-      setMsg(msgEl, `WIN +${fmt(win)} (rolled ${target.n} ${target.c})`, "ok");
+      setMsg(msgEl, `WIN +${fmt(win)} (rolled ${rolled.n} ${rolled.c})`, "ok");
     } else {
-      setMsg(msgEl, `LOSE -${fmt(bet)} (rolled ${target.n} ${target.c})`, "err");
+      setMsg(msgEl, `LOSE -${fmt(bet)} (rolled ${rolled.n} ${rolled.c})`, "err");
     }
 
-    STATE.roulette.history.unshift(target);
+    STATE.roulette.history.unshift(rolled);
     STATE.roulette.history = STATE.roulette.history.slice(0, 20);
     renderHistory();
 
@@ -360,7 +413,7 @@
 
   function minesMultiplier(openedCount, mineCount, size) {
     // "Fair-ish" multiplier from probability (with small house edge).
-    // odds = Π (n-i)/(safe-i)
+    // odds = О  (n-i)/(safe-i)
     // multiplier = odds * (1 - edge)
     const n = size * size;
     const safe = n - mineCount;
@@ -411,31 +464,34 @@
       const opened = STATE.mines.opened.includes(i);
       if (opened) {
         btn.classList.add("opened");
-        btn.textContent = "\uD83D\uDC8E";
+        btn.textContent = "◆";
       }
       if (!STATE.mines.active || opened) btn.disabled = true;
       host.appendChild(btn);
     }
   }
 
-  function buildMinesSelectOptions() {
-    const sizeSel = qs("minesGridSize");
-    const minesSel = qs("minesMinesSelect");
-
-    sizeSel.value = String(STATE.mines.size);
+  function renderMinesControls() {
+    qs("minesSizeValue").textContent = `${STATE.mines.size}x${STATE.mines.size}`;
+    qs("minesMinesCtrlValue").textContent = String(STATE.mines.mines);
+    qs("minesMinesValue").textContent = String(STATE.mines.mines);
     const maxMines = STATE.mines.size * STATE.mines.size - 1;
-    const nextMines = Math.min(maxMines, Math.max(1, STATE.mines.mines));
-    STATE.mines.mines = nextMines;
+    qs("minesMinesHint").textContent = `Max mines: ${maxMines}`;
+  }
 
-    minesSel.innerHTML = "";
-    for (let i = 1; i <= maxMines; i += 1) {
-      const opt = document.createElement("option");
-      opt.value = String(i);
-      opt.textContent = String(i);
-      minesSel.appendChild(opt);
-    }
-    minesSel.value = String(nextMines);
-    qs("minesMinesValue").textContent = String(nextMines);
+  function setMinesSize(next) {
+    const size = Math.min(15, Math.max(2, Math.floor(Number(next) || 5)));
+    STATE.mines.size = size;
+    const maxMines = size * size - 1;
+    STATE.mines.mines = Math.min(maxMines, Math.max(1, STATE.mines.mines));
+    renderMinesControls();
+  }
+
+  function setMinesMines(next) {
+    const maxMines = STATE.mines.size * STATE.mines.size - 1;
+    const mines = Math.min(maxMines, Math.max(1, Math.floor(Number(next) || 1)));
+    STATE.mines.mines = mines;
+    renderMinesControls();
   }
 
   function resetMinesRound() {
@@ -445,8 +501,10 @@
     STATE.mines.cashoutMultiplier = 1;
     qs("minesStartBtn").disabled = false;
     qs("minesCashoutBtn").disabled = true;
-    qs("minesGridSize").disabled = false;
-    qs("minesMinesSelect").disabled = false;
+    qs("minesSizeMinus").disabled = false;
+    qs("minesSizePlus").disabled = false;
+    qs("minesMinesMinus").disabled = false;
+    qs("minesMinesPlus").disabled = false;
     qs("minesBetInput").disabled = false;
     qs("minesBetHalf").disabled = false;
     qs("minesBetDouble").disabled = false;
@@ -481,8 +539,10 @@
 
     qs("minesStartBtn").disabled = true;
     qs("minesCashoutBtn").disabled = false;
-    qs("minesGridSize").disabled = true;
-    qs("minesMinesSelect").disabled = true;
+    qs("minesSizeMinus").disabled = true;
+    qs("minesSizePlus").disabled = true;
+    qs("minesMinesMinus").disabled = true;
+    qs("minesMinesPlus").disabled = true;
     qs("minesBetInput").disabled = true;
     qs("minesBetHalf").disabled = true;
     qs("minesBetDouble").disabled = true;
@@ -497,7 +557,7 @@
       const idx = Number(cell.dataset.idx);
       if (STATE.mines.bombs.includes(idx)) {
         cell.classList.add("bomb");
-        cell.textContent = "\uD83D\uDCA3";
+        cell.textContent = "●";
       }
       cell.disabled = true;
     }
@@ -516,12 +576,14 @@
     const isBomb = STATE.mines.bombs.includes(idx);
     if (isBomb) {
       cell.classList.add("bomb");
-      cell.textContent = "\uD83D\uDCA3";
+      cell.textContent = "●";
       STATE.mines.active = false;
       qs("minesCashoutBtn").disabled = true;
       qs("minesStartBtn").disabled = false;
-      qs("minesGridSize").disabled = false;
-      qs("minesMinesSelect").disabled = false;
+      qs("minesSizeMinus").disabled = false;
+      qs("minesSizePlus").disabled = false;
+      qs("minesMinesMinus").disabled = false;
+      qs("minesMinesPlus").disabled = false;
       qs("minesBetInput").disabled = false;
       qs("minesBetHalf").disabled = false;
       qs("minesBetDouble").disabled = false;
@@ -533,7 +595,7 @@
 
     STATE.mines.opened.push(idx);
     cell.classList.add("opened");
-    cell.textContent = "\uD83D\uDC8E";
+    cell.textContent = "◆";
 
     const mult = minesMultiplier(STATE.mines.opened.length, STATE.mines.mines, STATE.mines.size);
     STATE.mines.cashoutMultiplier = mult;
@@ -547,8 +609,10 @@
     STATE.mines.active = false;
     qs("minesCashoutBtn").disabled = true;
     qs("minesStartBtn").disabled = false;
-    qs("minesGridSize").disabled = false;
-    qs("minesMinesSelect").disabled = false;
+    qs("minesSizeMinus").disabled = false;
+    qs("minesSizePlus").disabled = false;
+    qs("minesMinesMinus").disabled = false;
+    qs("minesMinesPlus").disabled = false;
     qs("minesBetInput").disabled = false;
     qs("minesBetHalf").disabled = false;
     qs("minesBetDouble").disabled = false;
@@ -605,8 +669,7 @@
       renderBetSelection();
     });
     qs("betTypeNumber").addEventListener("click", () => {
-      const n = Number(qs("rouletteNumber").value);
-      STATE.roulette.bet = { type: "number", value: Number.isFinite(n) ? n : 0 };
+      if (STATE.roulette.bet.type !== "number") STATE.roulette.bet = { type: "number", value: 0 };
       renderBetSelection();
     });
 
@@ -617,23 +680,37 @@
         renderBetSelection();
       });
     }
-    qs("rouletteNumber").addEventListener("change", () => {
-      if (STATE.roulette.bet.type !== "number") return;
-      const n = Number(qs("rouletteNumber").value);
-      STATE.roulette.bet.value = Number.isFinite(n) ? n : 0;
-      renderBetSelection();
-    });
+
+    // Number grid (no <select>, avoids white dropdown issues on some browsers)
+    const numGrid = qs("rouletteNumberGrid");
+    if (numGrid) {
+      numGrid.innerHTML = "";
+      for (const p of POCKETS) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = `num-btn ${p.c}`;
+        btn.textContent = String(p.n);
+        btn.dataset.rNumber = String(p.n);
+        btn.addEventListener("click", () => {
+          STATE.roulette.bet = { type: "number", value: p.n };
+          renderBetSelection();
+        });
+        numGrid.appendChild(btn);
+      }
+    }
     qs("rouletteSpinBtn").addEventListener("click", spinRoulette);
 
     // Mines controls
     loadMinesState();
     qs("minesBetInput").value = String(STATE.mines.lastBet);
-    qs("minesGridSize").value = String(STATE.mines.size);
-    buildMinesSelectOptions();
+    setMinesSize(STATE.mines.size);
+    setMinesMines(STATE.mines.mines);
 
     const lockMinesControls = (locked) => {
-      qs("minesGridSize").disabled = locked;
-      qs("minesMinesSelect").disabled = locked;
+      qs("minesSizeMinus").disabled = locked;
+      qs("minesSizePlus").disabled = locked;
+      qs("minesMinesMinus").disabled = locked;
+      qs("minesMinesPlus").disabled = locked;
       qs("minesBetInput").disabled = locked;
       qs("minesBetHalf").disabled = locked;
       qs("minesBetDouble").disabled = locked;
@@ -652,20 +729,25 @@
       lockMinesControls(false);
     }
 
-    qs("minesGridSize").addEventListener("change", () => {
+    qs("minesSizeMinus").addEventListener("click", () => {
       if (STATE.mines.active) return;
-      const size = Math.min(15, Math.max(2, Number(qs("minesGridSize").value) || 5));
-      STATE.mines.size = size;
-      buildMinesSelectOptions();
+      setMinesSize(STATE.mines.size - 1);
+      resetMinesRound();
+    });
+    qs("minesSizePlus").addEventListener("click", () => {
+      if (STATE.mines.active) return;
+      setMinesSize(STATE.mines.size + 1);
       resetMinesRound();
     });
 
-    qs("minesMinesSelect").addEventListener("change", () => {
+    qs("minesMinesMinus").addEventListener("click", () => {
       if (STATE.mines.active) return;
-      const maxMines = STATE.mines.size * STATE.mines.size - 1;
-      const mines = Math.min(maxMines, Math.max(1, Number(qs("minesMinesSelect").value) || 1));
-      STATE.mines.mines = mines;
-      qs("minesMinesValue").textContent = String(mines);
+      setMinesMines(STATE.mines.mines - 1);
+      resetMinesRound();
+    });
+    qs("minesMinesPlus").addEventListener("click", () => {
+      if (STATE.mines.active) return;
+      setMinesMines(STATE.mines.mines + 1);
       resetMinesRound();
     });
 
@@ -728,3 +810,4 @@
     });
   });
 })();
+

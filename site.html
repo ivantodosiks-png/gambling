@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ivan Simulator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./site.css" />
   </head>
   <body>
@@ -14,7 +17,7 @@
             <div class="logo">G</div>
             <div>
               <div style="font-weight:1000; font-size:16px; line-height:1;">Ivan Simulator</div>
-              <div class="muted">Mini games</div>
+              <div class="muted">Roulette + Mines (virtual coins only)</div>
             </div>
           </div>
           <div class="top-actions">
@@ -55,6 +58,7 @@
 
             <div class="roulette-stage" style="margin-top:12px;">
               <div class="roulette-window" id="rouletteWindow">
+                <div class="pointer" aria-hidden="true"></div>
                 <div class="marker"></div>
                 <div class="roulette-track" id="rouletteTrack"></div>
               </div>
@@ -77,32 +81,16 @@
 
               <div id="rouletteColorBox" style="margin-top:12px;">
                 <div class="bet-colors">
-                  <button type="button" data-r-color="red">Red (2x)</button>
-                  <button type="button" data-r-color="black">Black (2x)</button>
-                  <button type="button" data-r-color="green">Green (14x)</button>
+                  <button type="button" data-r-color="red"><span class="swatch red"></span> Red <span class="payout">2x</span></button>
+                  <button type="button" data-r-color="black"><span class="swatch black"></span> Black <span class="payout">2x</span></button>
+                  <button type="button" data-r-color="green"><span class="swatch green"></span> Green <span class="payout">14x</span></button>
                 </div>
               </div>
 
               <div id="rouletteNumberBox" style="margin-top:12px; display:none;">
                 <div class="ctrl">
                   <label>Number</label>
-                  <select id="rouletteNumber" class="select">
-                    <option value="0">0 (green)</option>
-                    <option value="1">1 (red)</option>
-                    <option value="2">2 (black)</option>
-                    <option value="3">3 (red)</option>
-                    <option value="4">4 (black)</option>
-                    <option value="5">5 (red)</option>
-                    <option value="6">6 (black)</option>
-                    <option value="7">7 (red)</option>
-                    <option value="8">8 (black)</option>
-                    <option value="9">9 (red)</option>
-                    <option value="10">10 (black)</option>
-                    <option value="11">11 (black)</option>
-                    <option value="12">12 (red)</option>
-                    <option value="13">13 (black)</option>
-                    <option value="14">14 (red)</option>
-                  </select>
+                  <div id="rouletteNumberGrid" class="bet-numbers" aria-label="Roulette number bet"></div>
                 </div>
               </div>
 
@@ -137,27 +125,21 @@
 
               <div class="panel-block">
                 <div class="lbl">Grid size</div>
-                <select id="minesGridSize" class="select">
-                  <option value="2">2x2</option>
-                  <option value="3">3x3</option>
-                  <option value="4">4x4</option>
-                  <option value="5" selected>5x5</option>
-                  <option value="6">6x6</option>
-                  <option value="7">7x7</option>
-                  <option value="8">8x8</option>
-                  <option value="9">9x9</option>
-                  <option value="10">10x10</option>
-                  <option value="11">11x11</option>
-                  <option value="12">12x12</option>
-                  <option value="13">13x13</option>
-                  <option value="14">14x14</option>
-                  <option value="15">15x15</option>
-                </select>
+                <div class="stepper mini" aria-label="Mines grid size">
+                  <button id="minesSizeMinus" type="button">-</button>
+                  <div class="value" id="minesSizeValue">5x5</div>
+                  <button id="minesSizePlus" type="button">+</button>
+                </div>
               </div>
 
               <div class="panel-block">
                 <div class="lbl">Mines</div>
-                <select id="minesMinesSelect" class="select"></select>
+                <div class="stepper mini" aria-label="Mines count">
+                  <button id="minesMinesMinus" type="button">-</button>
+                  <div class="value" id="minesMinesCtrlValue">4</div>
+                  <button id="minesMinesPlus" type="button">+</button>
+                </div>
+                <div class="muted tiny" id="minesMinesHint" style="margin-top:6px;"></div>
               </div>
 
               <button id="minesStartBtn" class="primary-wide" type="button">Bet</button>
