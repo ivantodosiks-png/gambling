@@ -419,8 +419,8 @@ main > .wrap {
 /* New Roulette (wheel + betting table) */
 .roulette-layout {
   display: grid;
-  grid-template-columns: 280px 1fr;
-  gap: 14px;
+  grid-template-columns: 260px 1fr;
+  gap: 20px;
   align-items: start;
   height: 100%;
   min-height: 0;
@@ -456,7 +456,7 @@ main > .wrap {
 }
 
 .roulette-wheel {
-  width: min(500px, 45vh, 92vw);
+  width: min(420px, 40vh, 92vw);
   aspect-ratio: 1 / 1;
   margin: 0 auto;
   position: relative;
