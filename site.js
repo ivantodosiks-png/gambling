@@ -201,12 +201,10 @@
     for (const btn of document.querySelectorAll("[data-r-color]")) {
       btn.classList.toggle("active", bet.type === "color" && bet.value === btn.dataset.rColor);
     }
-    for (const btn of document.querySelectorAll("[data-r-num]")) {
-      btn.classList.toggle("active", bet.type === "number" && bet.value === Number(btn.dataset.rNum));
-    }
-
-    const label = bet.type === "color" ? `Color: ${bet.value}` : `Number: ${bet.value}`;
+    const label = bet.type === "color" ? "Color" : "Number";
     qs("rouletteBetType").textContent = label;
+    qs("rouletteColorBox").style.display = bet.type === "color" ? "block" : "none";
+    qs("rouletteNumberBox").style.display = bet.type === "number" ? "block" : "none";
   }
 
   function buildTrack(targetPocket) {
@@ -225,7 +223,7 @@
     for (let i = 25; i < seq.length; i += 1) {
       if (seq[i].n === targetPocket.n) candidates.push(i);
     }
-    const stopIndex = candidates[Math.floor(Math.random() * candidates.length)];
+    const stopIndex = candidates.length ? candidates[Math.floor(Math.random() * candidates.length)] : 30;
 
     for (const p of seq) {
       const d = document.createElement("div");
@@ -339,7 +337,7 @@
       if (!raw) return;
       const p = JSON.parse(raw);
       if (!p || typeof p !== "object") return;
-      STATE.mines.size = p.size === 6 ? 6 : 5;
+      STATE.mines.size = 5; // keep UI simple
       STATE.mines.mines = Math.min(10, Math.max(1, Number(p.mines) || 4));
       STATE.mines.bet = Math.max(1, Math.floor(Number(p.bet) || 100));
       STATE.mines.active = Boolean(p.active);
@@ -366,9 +364,7 @@
   }
 
   function renderMinesStats() {
-    qs("minesSizeValue").textContent = `${STATE.mines.size}x${STATE.mines.size}`;
     qs("minesMinesValue").textContent = String(STATE.mines.mines);
-    qs("minesBetValue").textContent = fmt(STATE.mines.bet);
     qs("minesOpenedValue").textContent = String(STATE.mines.opened.length);
     qs("minesMultValue").textContent = `${STATE.mines.cashoutMultiplier.toFixed(2)}x`;
   }
@@ -403,7 +399,8 @@
     STATE.mines.cashoutMultiplier = 1;
     qs("minesStartBtn").disabled = false;
     qs("minesCashoutBtn").disabled = true;
-    setMsg(qs("minesMsg"), "Set mines and press Start.", "");
+    qs("minesCount").disabled = false;
+    setMsg(qs("minesMsg"), "Choose mines and press Start.", "");
     renderMinesStats();
     renderMinesGrid();
     saveMinesState();
@@ -413,11 +410,12 @@
     const msgEl = qs("minesMsg");
     setMsg(msgEl, "", "");
 
-    const bet = Math.max(1, Math.floor(Number(STATE.mines.bet) || 1));
+    const bet = Math.max(1, Math.floor(Number(STATE.betAmount) || 1));
     if (bet > STATE.balance) return setMsg(msgEl, "Not enough balance.", "err");
 
     // Deduct bet upfront.
     setBalance(STATE.balance - bet);
+    STATE.mines.bet = bet;
 
     STATE.mines.active = true;
     STATE.mines.opened = [];
@@ -432,6 +430,7 @@
 
     qs("minesStartBtn").disabled = true;
     qs("minesCashoutBtn").disabled = false;
+    qs("minesCount").disabled = true;
     setMsg(msgEl, "Round started. Open tiles.", "");
     renderMinesStats();
     renderMinesGrid();
@@ -465,6 +464,8 @@
       cell.textContent = "💣";
       STATE.mines.active = false;
       qs("minesCashoutBtn").disabled = true;
+      qs("minesStartBtn").disabled = false;
+      qs("minesCount").disabled = false;
       setMsg(qs("minesMsg"), "BOOM! You hit a mine.", "err");
       revealAllBombs();
       saveMinesState();
@@ -486,6 +487,8 @@
     if (!STATE.mines.active) return;
     STATE.mines.active = false;
     qs("minesCashoutBtn").disabled = true;
+    qs("minesStartBtn").disabled = false;
+    qs("minesCount").disabled = false;
 
     const win = Math.floor(STATE.mines.bet * STATE.mines.cashoutMultiplier);
     setBalance(STATE.balance + win);
@@ -506,7 +509,6 @@
   function setMinesBet(next) {
     const n = Math.max(1, Math.floor(Number(next) || 1));
     STATE.mines.bet = n;
-    qs("minesBetValue").textContent = fmt(n);
     saveMinesState();
   }
 
@@ -540,6 +542,17 @@
     qs("betMinus").addEventListener("click", () => setBetAmount(Math.max(1, STATE.betAmount - 10)));
     qs("betPlus").addEventListener("click", () => setBetAmount(STATE.betAmount + 10));
 
+    // Roulette bet type toggle
+    qs("betTypeColor").addEventListener("click", () => {
+      STATE.roulette.bet = { type: "color", value: "red" };
+      renderBetSelection();
+    });
+    qs("betTypeNumber").addEventListener("click", () => {
+      const n = Number(qs("rouletteNumber").value);
+      STATE.roulette.bet = { type: "number", value: Number.isFinite(n) ? n : 0 };
+      renderBetSelection();
+    });
+
     // Roulette bets
     for (const btn of document.querySelectorAll("[data-r-color]")) {
       btn.addEventListener("click", () => {
@@ -547,57 +560,38 @@
         renderBetSelection();
       });
     }
-    for (const btn of document.querySelectorAll("[data-r-num]")) {
-      btn.addEventListener("click", () => {
-        STATE.roulette.bet = { type: "number", value: Number(btn.dataset.rNum) };
-        renderBetSelection();
-      });
-    }
+    qs("rouletteNumber").addEventListener("change", () => {
+      if (STATE.roulette.bet.type !== "number") return;
+      const n = Number(qs("rouletteNumber").value);
+      STATE.roulette.bet.value = Number.isFinite(n) ? n : 0;
+      renderBetSelection();
+    });
     qs("rouletteSpinBtn").addEventListener("click", spinRoulette);
 
     // Mines controls
     loadMinesState();
-    renderMinesStats();
-    renderMinesGrid();
-    resetMinesRound();
-
-    qs("minesSizeMinus").addEventListener("click", () => {
-      if (STATE.mines.active) return;
-      STATE.mines.size = 5;
-      resetMinesRound();
-    });
-    qs("minesSizePlus").addEventListener("click", () => {
-      if (STATE.mines.active) return;
-      STATE.mines.size = 6;
-      resetMinesRound();
-    });
-    qs("minesMinesMinus").addEventListener("click", () => {
-      if (STATE.mines.active) return;
-      STATE.mines.mines = Math.max(1, STATE.mines.mines - 1);
-      resetMinesRound();
-    });
-    qs("minesMinesPlus").addEventListener("click", () => {
-      if (STATE.mines.active) return;
-      STATE.mines.mines = Math.min(10, STATE.mines.mines + 1);
-      resetMinesRound();
-    });
-
-    qs("minesBetMinus").addEventListener("click", () => {
-      if (STATE.mines.active) return;
-      setMinesBet(Math.max(1, STATE.mines.bet - 10));
+    if (STATE.mines.active && Array.isArray(STATE.mines.bombs) && STATE.mines.bombs.length) {
+      qs("minesStartBtn").disabled = true;
+      qs("minesCashoutBtn").disabled = false;
+      qs("minesCount").disabled = true;
+      setMsg(qs("minesMsg"), "Round restored. Continue opening tiles.", "ok");
       renderMinesStats();
-    });
-    qs("minesBetPlus").addEventListener("click", () => {
+      renderMinesGrid();
+    } else {
+      resetMinesRound();
+    }
+
+    qs("minesCount").addEventListener("input", () => {
       if (STATE.mines.active) return;
-      setMinesBet(STATE.mines.bet + 10);
-      renderMinesStats();
+      const v = Math.min(10, Math.max(1, Number(qs("minesCount").value) || 1));
+      STATE.mines.mines = v;
+      qs("minesMinesValue").textContent = String(v);
+      resetMinesRound();
     });
+    qs("minesCount").value = String(STATE.mines.mines);
 
     qs("minesStartBtn").addEventListener("click", startMinesRound);
     qs("minesCashoutBtn").addEventListener("click", cashoutMines);
-    qs("minesResetBtn").addEventListener("click", () => {
-      resetMinesRound();
-    });
 
     qs("minesGrid").addEventListener("click", (e) => {
       const cell = e.target && e.target.closest && e.target.closest(".mine-cell");
@@ -611,6 +605,7 @@
     STATE.roulette.bet = { type: "color", value: "red" };
     renderBetSelection();
     renderHistory();
+    buildTrack(POCKETS[Math.floor(Math.random() * POCKETS.length)]);
 
     // A little help if balance column missing
     qs("balanceHint").textContent = "";
