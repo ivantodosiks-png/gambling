@@ -88,10 +88,14 @@
       tabLogin.addEventListener("click", () => setMode("login"));
       tabRegister.addEventListener("click", () => setMode("register"));
 
-      // Если ключи не подгрузились, сразу показываем понятную ошибку.
-      if (!window.__SUPABASE__?.url || !window.__SUPABASE__?.anonKey) {
-        setError("Нет ключей Supabase. Проверь SUPABASE_URL и SUPABASE_ANON_KEY в .env и что сайт запущен через server.js");
-        submitBtn.disabled = true;
+      function hasSupabaseKeys() {
+        return Boolean(window.__SUPABASE__?.url && window.__SUPABASE__?.anonKey);
+      }
+
+      // Если ключи не подгрузились, показываем ошибку, но кнопку НЕ блокируем
+      // (иначе кажется что "не нажимается").
+      if (!hasSupabaseKeys()) {
+        setError("Нет ключей Supabase. Если ты на Vercel/статике — ключи должны быть прямо в supabase.js. Если локально — запусти через node server.js и заполни .env.");
       }
 
       async function goIfAuthed() {
@@ -103,6 +107,10 @@
 
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
+
+        if (!hasSupabaseKeys()) {
+          return setError("Ключи Supabase не найдены. Заполни SUPABASE_URL/SUPABASE_ANON_KEY (или вставь их в supabase.js для статики).");
+        }
 
         const email = emailEl.value.trim();
         const password = passEl.value;
