@@ -36,129 +36,155 @@
     <main>
       <div class="wrap">
         <div id="globalMsg" class="msg"></div>
-        <div class="grid">
-          <div>
-            <div class="card" style="margin-bottom:14px;">
+        <section id="rouletteView" class="view active">
+          <div class="card">
+            <div class="ctrl-row">
+              <div>
+                <h2 style="margin:0 0 4px;">Roulette</h2>
+                <div class="muted">Quick roulette (virtual coins only).</div>
+              </div>
+              <div class="ctrl">
+                <label>Bet</label>
+                <div class="stepper" aria-label="Roulette bet amount">
+                  <button id="betMinus" type="button">-</button>
+                  <div class="value" id="betValue">100</div>
+                  <button id="betPlus" type="button">+</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="roulette-stage" style="margin-top:12px;">
+              <div class="roulette-window" id="rouletteWindow">
+                <div class="marker"></div>
+                <div class="roulette-track" id="rouletteTrack"></div>
+              </div>
+            </div>
+
+            <div class="stake-panel" style="margin-top:14px;">
               <div class="ctrl-row">
                 <div class="ctrl">
-                  <div class="num" id="betScope">Bet (applies to current game)</div>
+                  <label>Bet type</label>
+                  <div class="stepper">
+                    <button id="betTypeColor" type="button">Color</button>
+                    <div class="value" id="rouletteBetType">Color</div>
+                    <button id="betTypeNumber" type="button">Number</button>
+                  </div>
                 </div>
                 <div class="ctrl">
-                  <label>Bet</label>
-                  <div class="stepper" aria-label="Bet amount">
-                    <button id="betMinus" type="button">-</button>
-                    <div class="value" id="betValue">100</div>
-                    <button id="betPlus" type="button">+</button>
-                  </div>
+                  <button id="rouletteSpinBtn" type="button">Spin</button>
                 </div>
               </div>
+
+              <div id="rouletteColorBox" style="margin-top:12px;">
+                <div class="bet-colors">
+                  <button type="button" data-r-color="red">Red (2x)</button>
+                  <button type="button" data-r-color="black">Black (2x)</button>
+                  <button type="button" data-r-color="green">Green (14x)</button>
+                </div>
+              </div>
+
+              <div id="rouletteNumberBox" style="margin-top:12px; display:none;">
+                <div class="ctrl">
+                  <label>Number</label>
+                  <select id="rouletteNumber" class="select">
+                    <option value="0">0 (green)</option>
+                    <option value="1">1 (red)</option>
+                    <option value="2">2 (black)</option>
+                    <option value="3">3 (red)</option>
+                    <option value="4">4 (black)</option>
+                    <option value="5">5 (red)</option>
+                    <option value="6">6 (black)</option>
+                    <option value="7">7 (red)</option>
+                    <option value="8">8 (black)</option>
+                    <option value="9">9 (red)</option>
+                    <option value="10">10 (black)</option>
+                    <option value="11">11 (black)</option>
+                    <option value="12">12 (red)</option>
+                    <option value="13">13 (black)</option>
+                    <option value="14">14 (red)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="msg" id="rouletteMsg"></div>
+              <div class="muted" style="margin-top:8px;">Last rolls</div>
+              <div class="history" id="rouletteHistory"></div>
             </div>
-
-            <section id="rouletteView" class="view active">
-              <div class="card">
-              <h2>Roulette</h2>
-              <div class="muted">Stake-style quick roulette (virtual coins only).</div>
-
-              <div class="roulette-stage" style="margin-top:12px;">
-                <div class="roulette-window" id="rouletteWindow">
-                  <div class="marker"></div>
-                  <div class="roulette-track" id="rouletteTrack"></div>
-                </div>
-              </div>
-
-              <div class="card" style="margin-top:14px;">
-                <div class="ctrl-row">
-                  <div class="ctrl">
-                    <label>Bet type</label>
-                    <div class="stepper">
-                      <button id="betTypeColor" type="button">Color</button>
-                      <div class="value" id="rouletteBetType">Color</div>
-                      <button id="betTypeNumber" type="button">Number</button>
-                    </div>
-                  </div>
-                  <div class="ctrl">
-                    <button id="rouletteSpinBtn" type="button">Spin</button>
-                  </div>
-                </div>
-
-                <div id="rouletteColorBox" style="margin-top:12px;">
-                  <div class="bet-colors">
-                    <button type="button" data-r-color="red">Red (2x)</button>
-                    <button type="button" data-r-color="black">Black (2x)</button>
-                    <button type="button" data-r-color="green">Green (14x)</button>
-                  </div>
-                </div>
-
-                <div id="rouletteNumberBox" style="margin-top:12px; display:none;">
-                  <div class="ctrl">
-                    <label>Number</label>
-                    <select id="rouletteNumber" class="select">
-                      <option value="0">0 (green)</option>
-                      <option value="1">1 (red)</option>
-                      <option value="2">2 (black)</option>
-                      <option value="3">3 (red)</option>
-                      <option value="4">4 (black)</option>
-                      <option value="5">5 (red)</option>
-                      <option value="6">6 (black)</option>
-                      <option value="7">7 (red)</option>
-                      <option value="8">8 (black)</option>
-                      <option value="9">9 (red)</option>
-                      <option value="10">10 (black)</option>
-                      <option value="11">11 (black)</option>
-                      <option value="12">12 (red)</option>
-                      <option value="13">13 (black)</option>
-                      <option value="14">14 (red)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="msg" id="rouletteMsg"></div>
-                <div class="muted" style="margin-top:8px;">Last rolls</div>
-                <div class="history" id="rouletteHistory"></div>
-              </div>
-              </div>
-            </section>
-
-            <section id="minesView" class="view">
-              <div class="card">
-                <h2>Mines</h2>
-                <div class="muted">Stake-style mines (open gems, avoid bombs).</div>
-
-                <div class="mines-top" style="margin-top:12px;">
-                  <div class="ctrl">
-                    <label>Mines</label>
-                    <input id="minesCount" class="range" type="range" min="1" max="10" value="4" />
-                    <div class="muted">Mines: <b id="minesMinesValue">4</b></div>
-                  </div>
-                </div>
-
-                <div class="mines-top" style="margin-top:10px;">
-                  <div class="ctrl">
-                    <div class="kv">
-                      <div><span class="k">Opened:</span> <span class="v" id="minesOpenedValue">0</span></div>
-                      <div><span class="k">Multiplier:</span> <span class="v" id="minesMultValue">1.00x</span></div>
-                    </div>
-                  </div>
-                  <div class="ctrl">
-                    <button id="minesStartBtn" type="button">Start</button>
-                    <button id="minesCashoutBtn" class="secondary" type="button" disabled>Cash out</button>
-                  </div>
-                </div>
-
-                <div class="msg" id="minesMsg"></div>
-                <div class="mines-grid" id="minesGrid"></div>
-              </div>
-            </section>
           </div>
+        </section>
 
-          <aside>
-            <div class="card">
-              <h3 style="margin:0 0 8px;">Payouts</h3>
-              <div class="muted">Roulette colors: red/black 2x, green 14x. Number: 14x.</div>
-              <div class="muted" style="margin-top:8px;">Mines multiplier increases per safe tile.</div>
+        <section id="minesView" class="view">
+          <div class="mines-layout">
+            <div class="mines-panel">
+              <div class="mode-pill">
+                <button id="minesManualTab" type="button" class="mode active">Manual</button>
+                <button type="button" class="mode" disabled>Auto</button>
+              </div>
+
+              <div class="panel-block">
+                <div class="label-row">
+                  <div class="lbl">Bet amount</div>
+                  <div class="muted">Coins</div>
+                </div>
+                <div class="betbox">
+                  <input id="minesBetInput" inputmode="numeric" value="100" />
+                  <div class="bet-actions">
+                    <button id="minesBetHalf" class="chip" type="button">1/2</button>
+                    <button id="minesBetDouble" class="chip" type="button">2x</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="panel-block">
+                <div class="lbl">Grid size</div>
+                <select id="minesGridSize" class="select">
+                  <option value="2">2x2</option>
+                  <option value="3">3x3</option>
+                  <option value="4">4x4</option>
+                  <option value="5" selected>5x5</option>
+                  <option value="6">6x6</option>
+                  <option value="7">7x7</option>
+                  <option value="8">8x8</option>
+                  <option value="9">9x9</option>
+                  <option value="10">10x10</option>
+                  <option value="11">11x11</option>
+                  <option value="12">12x12</option>
+                  <option value="13">13x13</option>
+                  <option value="14">14x14</option>
+                  <option value="15">15x15</option>
+                </select>
+              </div>
+
+              <div class="panel-block">
+                <div class="lbl">Mines</div>
+                <select id="minesMinesSelect" class="select"></select>
+              </div>
+
+              <button id="minesStartBtn" class="primary-wide" type="button">Bet</button>
+              <div class="msg" id="minesMsg"></div>
+
+              <div class="mines-bottom">
+                <div class="minirow">
+                  <div class="muted">Multiplier</div>
+                  <div class="strong" id="minesMultValue">1.00x</div>
+                </div>
+                <div class="minirow">
+                  <div class="muted">Profit</div>
+                  <div class="strong" id="minesProfitValue">0</div>
+                </div>
+                <button id="minesCashoutBtn" class="secondary-wide" type="button" disabled>Cash out</button>
+              </div>
             </div>
-          </aside>
-        </div>
+
+            <div class="mines-board">
+              <div class="board-top">
+                <div class="muted">Opened: <b id="minesOpenedValue">0</b></div>
+                <div class="muted">Mines: <b id="minesMinesValue">4</b></div>
+              </div>
+              <div class="mines-grid stake" id="minesGrid"></div>
+            </div>
+          </div>
+        </section>
       </div>
     </main>
 

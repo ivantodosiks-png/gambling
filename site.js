@@ -40,6 +40,7 @@
       size: 5,
       mines: 4,
       bet: 100,
+      lastBet: 100,
       active: false,
       bombs: [],
       opened: [],
@@ -322,6 +323,7 @@
         size: s.size,
         mines: s.mines,
         bet: s.bet,
+        lastBet: s.lastBet,
         active: s.active,
         bombs: s.bombs,
         opened: s.opened,
@@ -337,9 +339,12 @@
       if (!raw) return;
       const p = JSON.parse(raw);
       if (!p || typeof p !== "object") return;
-      STATE.mines.size = 5; // keep UI simple
-      STATE.mines.mines = Math.min(10, Math.max(1, Number(p.mines) || 4));
+      const size = Math.min(15, Math.max(2, Number(p.size) || 5));
+      STATE.mines.size = size;
+      const maxMines = size * size - 1;
+      STATE.mines.mines = Math.min(maxMines, Math.max(1, Number(p.mines) || 4));
       STATE.mines.bet = Math.max(1, Math.floor(Number(p.bet) || 100));
+      STATE.mines.lastBet = Math.max(1, Math.floor(Number(p.lastBet || p.bet) || 100));
       STATE.mines.active = Boolean(p.active);
       STATE.mines.bombs = Array.isArray(p.bombs) ? p.bombs : [];
       STATE.mines.opened = Array.isArray(p.opened) ? p.opened : [];
@@ -351,27 +356,46 @@
     return STATE.mines.size * STATE.mines.size;
   }
 
-  function minesIdxToRc(i) {
-    const size = STATE.mines.size;
-    return { r: Math.floor(i / size), c: i % size };
-  }
-
   function minesMultiplier(openedCount, mineCount, size) {
-    // Simple arcade-like multiplier. Not a real casino formula.
-    // More mines => higher growth.
-    const base = 1 + mineCount / 8;
-    return Number((Math.pow(base, openedCount / 2) * 1.02).toFixed(2));
+    // "Fair-ish" multiplier from probability (with small house edge).
+    // odds = Π (n-i)/(safe-i)
+    // multiplier = odds * (1 - edge)
+    const n = size * size;
+    const safe = n - mineCount;
+    const k = openedCount;
+    const edge = 0.01;
+    if (k <= 0) return 1;
+    if (safe <= 0) return 1;
+    if (k > safe) return 1;
+
+    let odds = 1;
+    for (let i = 0; i < k; i += 1) {
+      odds *= (n - i) / (safe - i);
+    }
+    const mult = odds * (1 - edge);
+    return Number(mult.toFixed(2));
   }
 
   function renderMinesStats() {
     qs("minesMinesValue").textContent = String(STATE.mines.mines);
     qs("minesOpenedValue").textContent = String(STATE.mines.opened.length);
     qs("minesMultValue").textContent = `${STATE.mines.cashoutMultiplier.toFixed(2)}x`;
+
+    const profit = Math.max(0, Math.floor(STATE.mines.bet * STATE.mines.cashoutMultiplier) - STATE.mines.bet);
+    qs("minesProfitValue").textContent = fmt(profit);
+
+    const cashBtn = qs("minesCashoutBtn");
+    if (STATE.mines.active) {
+      const payout = Math.floor(STATE.mines.bet * STATE.mines.cashoutMultiplier);
+      cashBtn.textContent = `Cash out (${fmt(payout)})`;
+    } else {
+      cashBtn.textContent = "Cash out";
+    }
   }
 
   function renderMinesGrid() {
     const host = qs("minesGrid");
-    host.style.gridTemplateColumns = `repeat(${STATE.mines.size}, 1fr)`;
+    host.style.gridTemplateColumns = `repeat(${STATE.mines.size}, minmax(0, 1fr))`;
     host.innerHTML = "";
 
     const cellCount = minesCellCount();
@@ -385,11 +409,31 @@
       const opened = STATE.mines.opened.includes(i);
       if (opened) {
         btn.classList.add("opened");
-        btn.textContent = "💎";
+        btn.textContent = "\uD83D\uDC8E";
       }
       if (!STATE.mines.active || opened) btn.disabled = true;
       host.appendChild(btn);
     }
+  }
+
+  function buildMinesSelectOptions() {
+    const sizeSel = qs("minesGridSize");
+    const minesSel = qs("minesMinesSelect");
+
+    sizeSel.value = String(STATE.mines.size);
+    const maxMines = STATE.mines.size * STATE.mines.size - 1;
+    const nextMines = Math.min(maxMines, Math.max(1, STATE.mines.mines));
+    STATE.mines.mines = nextMines;
+
+    minesSel.innerHTML = "";
+    for (let i = 1; i <= maxMines; i += 1) {
+      const opt = document.createElement("option");
+      opt.value = String(i);
+      opt.textContent = String(i);
+      minesSel.appendChild(opt);
+    }
+    minesSel.value = String(nextMines);
+    qs("minesMinesValue").textContent = String(nextMines);
   }
 
   function resetMinesRound() {
@@ -399,8 +443,12 @@
     STATE.mines.cashoutMultiplier = 1;
     qs("minesStartBtn").disabled = false;
     qs("minesCashoutBtn").disabled = true;
-    qs("minesCount").disabled = false;
-    setMsg(qs("minesMsg"), "Choose mines and press Start.", "");
+    qs("minesGridSize").disabled = false;
+    qs("minesMinesSelect").disabled = false;
+    qs("minesBetInput").disabled = false;
+    qs("minesBetHalf").disabled = false;
+    qs("minesBetDouble").disabled = false;
+    setMsg(qs("minesMsg"), "Choose settings and press Bet.", "");
     renderMinesStats();
     renderMinesGrid();
     saveMinesState();
@@ -410,12 +458,13 @@
     const msgEl = qs("minesMsg");
     setMsg(msgEl, "", "");
 
-    const bet = Math.max(1, Math.floor(Number(STATE.betAmount) || 1));
+    const bet = Math.max(1, Math.floor(Number(qs("minesBetInput").value) || 1));
     if (bet > STATE.balance) return setMsg(msgEl, "Not enough balance.", "err");
 
     // Deduct bet upfront.
     setBalance(STATE.balance - bet);
     STATE.mines.bet = bet;
+    STATE.mines.lastBet = bet;
 
     STATE.mines.active = true;
     STATE.mines.opened = [];
@@ -430,7 +479,11 @@
 
     qs("minesStartBtn").disabled = true;
     qs("minesCashoutBtn").disabled = false;
-    qs("minesCount").disabled = true;
+    qs("minesGridSize").disabled = true;
+    qs("minesMinesSelect").disabled = true;
+    qs("minesBetInput").disabled = true;
+    qs("minesBetHalf").disabled = true;
+    qs("minesBetDouble").disabled = true;
     setMsg(msgEl, "Round started. Open tiles.", "");
     renderMinesStats();
     renderMinesGrid();
@@ -442,7 +495,7 @@
       const idx = Number(cell.dataset.idx);
       if (STATE.mines.bombs.includes(idx)) {
         cell.classList.add("bomb");
-        cell.textContent = "💣";
+        cell.textContent = "\uD83D\uDCA3";
       }
       cell.disabled = true;
     }
@@ -461,11 +514,15 @@
     const isBomb = STATE.mines.bombs.includes(idx);
     if (isBomb) {
       cell.classList.add("bomb");
-      cell.textContent = "💣";
+      cell.textContent = "\uD83D\uDCA3";
       STATE.mines.active = false;
       qs("minesCashoutBtn").disabled = true;
       qs("minesStartBtn").disabled = false;
-      qs("minesCount").disabled = false;
+      qs("minesGridSize").disabled = false;
+      qs("minesMinesSelect").disabled = false;
+      qs("minesBetInput").disabled = false;
+      qs("minesBetHalf").disabled = false;
+      qs("minesBetDouble").disabled = false;
       setMsg(qs("minesMsg"), "BOOM! You hit a mine.", "err");
       revealAllBombs();
       saveMinesState();
@@ -474,7 +531,7 @@
 
     STATE.mines.opened.push(idx);
     cell.classList.add("opened");
-    cell.textContent = "💎";
+    cell.textContent = "\uD83D\uDC8E";
 
     const mult = minesMultiplier(STATE.mines.opened.length, STATE.mines.mines, STATE.mines.size);
     STATE.mines.cashoutMultiplier = mult;
@@ -488,7 +545,11 @@
     STATE.mines.active = false;
     qs("minesCashoutBtn").disabled = true;
     qs("minesStartBtn").disabled = false;
-    qs("minesCount").disabled = false;
+    qs("minesGridSize").disabled = false;
+    qs("minesMinesSelect").disabled = false;
+    qs("minesBetInput").disabled = false;
+    qs("minesBetHalf").disabled = false;
+    qs("minesBetDouble").disabled = false;
 
     const win = Math.floor(STATE.mines.bet * STATE.mines.cashoutMultiplier);
     setBalance(STATE.balance + win);
@@ -504,12 +565,6 @@
     const n = Math.max(1, Math.floor(Number(next) || 1));
     STATE.betAmount = n;
     qs("betValue").textContent = fmt(n);
-  }
-
-  function setMinesBet(next) {
-    const n = Math.max(1, Math.floor(Number(next) || 1));
-    STATE.mines.bet = n;
-    saveMinesState();
   }
 
   // ---- Bootstrap ----
@@ -570,28 +625,79 @@
 
     // Mines controls
     loadMinesState();
+    qs("minesBetInput").value = String(STATE.mines.lastBet);
+    qs("minesGridSize").value = String(STATE.mines.size);
+    buildMinesSelectOptions();
+
+    const lockMinesControls = (locked) => {
+      qs("minesGridSize").disabled = locked;
+      qs("minesMinesSelect").disabled = locked;
+      qs("minesBetInput").disabled = locked;
+      qs("minesBetHalf").disabled = locked;
+      qs("minesBetDouble").disabled = locked;
+    };
+
     if (STATE.mines.active && Array.isArray(STATE.mines.bombs) && STATE.mines.bombs.length) {
       qs("minesStartBtn").disabled = true;
       qs("minesCashoutBtn").disabled = false;
-      qs("minesCount").disabled = true;
+      lockMinesControls(true);
+      qs("minesBetInput").value = String(STATE.mines.bet);
       setMsg(qs("minesMsg"), "Round restored. Continue opening tiles.", "ok");
       renderMinesStats();
       renderMinesGrid();
     } else {
       resetMinesRound();
+      lockMinesControls(false);
     }
 
-    qs("minesCount").addEventListener("input", () => {
+    qs("minesGridSize").addEventListener("change", () => {
       if (STATE.mines.active) return;
-      const v = Math.min(10, Math.max(1, Number(qs("minesCount").value) || 1));
-      STATE.mines.mines = v;
-      qs("minesMinesValue").textContent = String(v);
+      const size = Math.min(15, Math.max(2, Number(qs("minesGridSize").value) || 5));
+      STATE.mines.size = size;
+      buildMinesSelectOptions();
       resetMinesRound();
     });
-    qs("minesCount").value = String(STATE.mines.mines);
 
-    qs("minesStartBtn").addEventListener("click", startMinesRound);
-    qs("minesCashoutBtn").addEventListener("click", cashoutMines);
+    qs("minesMinesSelect").addEventListener("change", () => {
+      if (STATE.mines.active) return;
+      const maxMines = STATE.mines.size * STATE.mines.size - 1;
+      const mines = Math.min(maxMines, Math.max(1, Number(qs("minesMinesSelect").value) || 1));
+      STATE.mines.mines = mines;
+      qs("minesMinesValue").textContent = String(mines);
+      resetMinesRound();
+    });
+
+    qs("minesBetInput").addEventListener("input", () => {
+      if (STATE.mines.active) return;
+      const bet = Math.max(1, Math.floor(Number(qs("minesBetInput").value) || 1));
+      STATE.mines.lastBet = bet;
+      qs("minesBetInput").value = String(bet);
+      saveMinesState();
+    });
+
+    qs("minesBetHalf").addEventListener("click", () => {
+      if (STATE.mines.active) return;
+      const bet = Math.max(1, Math.floor((Number(qs("minesBetInput").value) || 1) / 2));
+      qs("minesBetInput").value = String(bet);
+      STATE.mines.lastBet = bet;
+      saveMinesState();
+    });
+    qs("minesBetDouble").addEventListener("click", () => {
+      if (STATE.mines.active) return;
+      const bet = Math.max(1, Math.floor((Number(qs("minesBetInput").value) || 1) * 2));
+      qs("minesBetInput").value = String(bet);
+      STATE.mines.lastBet = bet;
+      saveMinesState();
+    });
+
+    qs("minesStartBtn").addEventListener("click", () => {
+      startMinesRound();
+      lockMinesControls(true);
+    });
+    qs("minesCashoutBtn").addEventListener("click", () => {
+      cashoutMines();
+      lockMinesControls(false);
+    });
 
     qs("minesGrid").addEventListener("click", (e) => {
       const cell = e.target && e.target.closest && e.target.closest(".mine-cell");
