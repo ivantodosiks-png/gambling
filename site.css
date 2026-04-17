@@ -299,14 +299,15 @@ main > .wrap {
   border-radius: 18px;
   display: grid;
   place-items: center;
+  text-align: center;
   font-weight: 1000;
   font-size: 38px;
   border: 2px solid rgba(255,255,255,0.16);
   box-shadow: 0 12px 28px rgba(0,0,0,0.45);
   user-select: none;
   flex-shrink: 0;
+  letter-spacing: -0.5px;
 }
-.pocket { letter-spacing: -0.5px; }
 .pocket.red { background: linear-gradient(135deg, rgba(255,77,109,0.95), rgba(255,77,109,0.72)); }
 .pocket.black { background: linear-gradient(135deg, rgba(22,26,43,0.95), rgba(22,26,43,0.72)); }
 .pocket.green { background: linear-gradient(135deg, rgba(51,209,143,0.95), rgba(51,209,143,0.72)); color: #07110c; }
@@ -526,27 +527,28 @@ main > .wrap {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   border-radius: 10px;
   display: grid;
   place-items: center;
+  text-align: center;
   font-weight: 1000;
-  font-size: 18px;
-  letter-spacing: -0.3px;
+  font-size: 22px;
+  letter-spacing: -0.4px;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
   color: rgba(0,0,0,0.95);
-  text-shadow: 0 3px 6px rgba(0,0,0,0.5);
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.15);
+  text-shadow: 0 4px 8px rgba(0,0,0,0.6);
+  background: transparent;
+  border: none;
   pointer-events: none;
   user-select: none;
 }
-.wheel-label.green { color: rgba(0,0,0,0.95); text-shadow: 0 2px 4px rgba(255,255,255,0.2); }
-.wheel-label.red { color: rgba(255,255,255,0.98); text-shadow: 0 2px 5px rgba(0,0,0,0.5); }
-.wheel-label.black { color: rgba(255,255,255,0.98); text-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+.wheel-label.green { color: rgba(0,0,0,0.97); text-shadow: 0 4px 8px rgba(0,0,0,0.5); }
+.wheel-label.red { color: rgba(255,255,255,0.99); text-shadow: 0 4px 10px rgba(0,0,0,0.7); }
+.wheel-label.black { color: rgba(255,255,255,0.99); text-shadow: 0 4px 10px rgba(0,0,0,0.7); }
 
 .wheel-ball {
   position: absolute;
