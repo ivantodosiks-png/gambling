@@ -45,12 +45,21 @@ $$;
 -- 4) Политики profiles:
 -- - обычный пользователь: видит только себя
 -- - админ: видит всех
+-- - все могут видеть профили с username для лидерборда
 drop policy if exists "profiles_select_own" on public.profiles;
 create policy "profiles_select_own"
 on public.profiles
 for select
 to authenticated
 using (id = auth.uid() or public.is_admin());
+
+-- Все (анон + аутентифицированные) могут видеть профили с username для лидерборда
+drop policy if exists "profiles_select_leaderboard" on public.profiles;
+create policy "profiles_select_leaderboard"
+on public.profiles
+for select
+to anon, authenticated
+using (username is not null and length(trim(username)) > 0);
 
 -- Обновлять profiles может:
 -- - сам пользователь (свой профиль)
