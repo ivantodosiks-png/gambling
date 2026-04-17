@@ -132,7 +132,7 @@
         let all = [];
 
         function getNickname(profile) {
-          const nickname = String(profile.username || profile.nickname || profile.nick || profile.name || "").trim();
+          const nickname = String(profile.username || "").trim();
           return nickname || "-";
         }
 
