@@ -4,9 +4,13 @@
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null,
+  username text,
   balance bigint not null default 5000,
   created_at timestamptz not null default now()
 );
+
+-- If table already exists from earlier runs
+alter table public.profiles add column if not exists username text;
 
 -- 2) Включаем RLS
 alter table public.profiles enable row level security;
@@ -109,3 +113,25 @@ for all
 to authenticated
 using (public.is_admin())
 with check (public.is_admin());
+
+-- 7) Leaderboard (public read) via SECURITY DEFINER RPC (does not expose emails)
+create or replace function public.get_leaderboard(p_limit integer default 50)
+returns table (
+  id uuid,
+  username text,
+  balance bigint,
+  created_at timestamptz
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p.id, p.username, p.balance, p.created_at
+  from public.profiles p
+  where p.username is not null and length(trim(p.username)) > 0
+  order by p.balance desc, p.created_at asc
+  limit least(greatest(p_limit, 1), 200);
+$$;
+
+grant execute on function public.get_leaderboard(integer) to anon, authenticated;

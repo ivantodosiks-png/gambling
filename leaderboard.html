@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Leaderboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./site.css" />
+    <style>
+      main { overflow: hidden; }
+      .lb-card { height: 100%; display: flex; flex-direction: column; min-height: 0; }
+      .lb-head { display:flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+      .lb-tools { display:flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
+      .lb-tools input {
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.04);
+        color: var(--text);
+        font-weight: 900;
+        min-width: min(340px, 92vw);
+      }
+      .lb-tools input:focus { outline:none; border-color: rgba(125, 211, 252, 0.55); box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.14); }
+      .lb-tableWrap { margin-top: 12px; border: 1px solid rgba(255,255,255,0.10); border-radius: 16px; overflow: hidden; min-height: 0; flex: 1 1 auto; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+      th { font-size: 12px; letter-spacing: 0.2px; color: rgba(233,237,247,0.65); }
+      td { font-weight: 800; }
+      tr:hover td { background: rgba(255,255,255,0.03); }
+      .rank { width: 70px; }
+      .coins { text-align: right; }
+      .idcell { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-weight: 700; color: rgba(233,237,247,0.70); font-size: 12px; }
+      @media (max-width: 520px) {
+        .rank { width: 52px; }
+        th:nth-child(4), td:nth-child(4) { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="wrap">
+        <div class="row">
+          <div class="brand">
+            <div class="logo">G</div>
+            <div>
+              <div style="font-weight:1000; font-size:16px; line-height:1;">Ivan Simulator</div>
+              <div class="muted">Leaderboard</div>
+            </div>
+          </div>
+          <div class="top-actions">
+            <button id="toSiteBtn" class="ghost" type="button">Back to games</button>
+            <button id="logoutBtn" type="button" style="display:none;">Logout</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div class="wrap" style="height:100%;">
+        <section class="view active">
+          <div class="card lb-card">
+            <div class="lb-head">
+              <div>
+                <h2 style="margin:0 0 4px;">Leaderboard</h2>
+                <div class="muted">Only users with a nickname are shown.</div>
+              </div>
+              <div class="lb-tools">
+                <input id="q" placeholder="Search nickname..." />
+                <button id="refreshBtn" class="secondary" type="button">Refresh</button>
+              </div>
+            </div>
+            <div class="msg" id="msg"></div>
+
+            <div class="lb-tableWrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th class="rank">#</th>
+                    <th>Nickname</th>
+                    <th class="coins">Coins</th>
+                    <th>ID</th>
+                  </tr>
+                </thead>
+                <tbody id="rows"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script src="/supabase-config.js"></script>
+    <script src="./supabase-config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="./supabase.js"></script>
+    <script src="./maintenance.js"></script>
+    <script>
+      (async () => {
+        const sb = window.sb;
+        const msgEl = document.getElementById("msg");
+        const rowsEl = document.getElementById("rows");
+        const qEl = document.getElementById("q");
+        const refreshBtn = document.getElementById("refreshBtn");
+        const toSiteBtn = document.getElementById("toSiteBtn");
+        const logoutBtn = document.getElementById("logoutBtn");
+
+        function setMsg(text, kind) {
+          msgEl.textContent = text || "";
+          msgEl.classList.remove("err", "ok");
+          if (kind) msgEl.classList.add(kind);
+        }
+        function fmt(n) {
+          const x = Number(n) || 0;
+          return Math.floor(x).toLocaleString("en-US");
+        }
+
+        if (!sb) {
+          setMsg("Supabase is not configured.", "err");
+          return;
+        }
+
+        if (window.maintenanceGuard) {
+          const blocked = await window.maintenanceGuard(sb);
+          if (blocked) return;
+        }
+
+        const { data: sess } = await sb.auth.getSession();
+        if (sess && sess.session) logoutBtn.style.display = "inline-block";
+
+        let all = [];
+
+        function render() {
+          const q = (qEl.value || "").trim().toLowerCase();
+          const list = q ? all.filter((x) => String(x.username || "").toLowerCase().includes(q)) : all;
+          rowsEl.innerHTML = "";
+          for (let i = 0; i < list.length; i += 1) {
+            const r = list[i];
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td class="rank">${i + 1}</td>
+              <td>${String(r.username || "-")}</td>
+              <td class="coins">${fmt(r.balance)}</td>
+              <td class="idcell">${String(r.id || "").slice(0, 8)}…</td>
+            `;
+            rowsEl.appendChild(tr);
+          }
+        }
+
+        async function load() {
+          setMsg("Loading...", "");
+          const { data, error } = await sb.rpc("get_leaderboard", { p_limit: 100 });
+          if (error) {
+            setMsg(`Leaderboard error: ${error.message}`, "err");
+            return;
+          }
+          all = Array.isArray(data) ? data : [];
+          setMsg(`Users: ${all.length}`, "ok");
+          render();
+        }
+
+        qEl.addEventListener("input", render);
+        refreshBtn.addEventListener("click", load);
+        toSiteBtn.addEventListener("click", () => (window.location.href = "./site.html"));
+        logoutBtn.addEventListener("click", async () => {
+          await sb.auth.signOut();
+          window.location.reload();
+        });
+
+        await load();
+      })();
+    </script>
+  </body>
+</html>
+

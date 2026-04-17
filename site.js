@@ -213,10 +213,14 @@
   function renderHistory() {
     const host = qs("rouletteHistory");
     host.innerHTML = "";
-    for (const h of STATE.roulette.history.slice(0, 12)) {
+    const list = STATE.roulette.history.slice(0, 12);
+    for (let i = 0; i < list.length; i += 1) {
+      const h = list[i];
       const div = document.createElement("div");
       div.className = `hist ${h.c}`;
       div.textContent = String(h.n);
+      div.classList.add("in");
+      div.style.animationDelay = `${Math.min(160, i * 22)}ms`;
       host.appendChild(div);
     }
   }
@@ -315,26 +319,41 @@
     const t0 = performance.now();
     const dropAt = 0.78; // last part: ball drops into the pocket ring
 
+    const ball = qs("wheelBall");
+    if (ball) ball.classList.add("fast");
+
     const frame = (now) => {
       const p = Math.min(1, Math.max(0, (now - t0) / Math.max(1, durationMs)));
       const e = easeOutCubic(p);
 
       // Ball runs opposite direction (looks more "real").
-      const ang = startAngle * (1 - e) + endAngle * e;
+      const baseAng = startAngle * (1 - e) + endAngle * e;
+      // Subtle wobble (fades out) for more "physics".
+      const wobble = Math.sin(p * 14 * Math.PI) * (1 - p) * 1.6;
+      const ang = baseAng + wobble;
 
       let r = outerR;
       if (p > dropAt) {
         const t = (p - dropAt) / (1 - dropAt);
         const ee = easeOutCubic(t);
         // Add a tiny bounce at the end of the drop.
-        const bounce = Math.sin(Math.min(1, t) * Math.PI) * 2.5;
-        r = outerR * (1 - ee) + innerR * ee + bounce;
+        const bounce = Math.sin(Math.min(1, t) * Math.PI) * 3.5;
+        // Tiny radial jitter while dropping into the pocket ring.
+        const jitter = Math.sin((t * 22) * Math.PI) * (1 - t) * 1.2;
+        r = outerR * (1 - ee) + innerR * ee + bounce + jitter;
       }
 
       setWheelBall(ang, r);
 
+      if (ball) {
+        if (p > 0.9) ball.classList.remove("fast");
+      }
+
       if (p < 1) ballRaf = requestAnimationFrame(frame);
-      else setWheelBall(0, innerR);
+      else {
+        if (ball) ball.classList.remove("fast");
+        setWheelBall(0, innerR);
+      }
     };
     ballRaf = requestAnimationFrame(frame);
   }
@@ -529,6 +548,15 @@
     clearInterval(tickInterval);
     playStop();
 
+    // Tiny vibration on stop for realism.
+    const wheel = document.querySelector(".roulette-wheel");
+    if (wheel) {
+      wheel.classList.remove("shake");
+      void wheel.offsetWidth;
+      wheel.classList.add("shake");
+      setTimeout(() => wheel.classList.remove("shake"), 600);
+    }
+
     // Resolve bets
     const bets = STATE.roulette.bets || {};
     let winTotal = 0;
@@ -543,6 +571,8 @@
     if (winTotal > 0) {
       setBalance(STATE.balance + winTotal);
       setMsg(msgEl, `WIN +${fmt(profit)} (rolled ${rolled.n} ${rolled.c})`, "ok");
+      document.body.classList.add("win-flash");
+      setTimeout(() => document.body.classList.remove("win-flash"), 900);
     } else {
       setMsg(msgEl, `LOSE -${fmt(totalBet)} (rolled ${rolled.n} ${rolled.c})`, "err");
     }
@@ -898,6 +928,7 @@ By clicking Accept, you confirm you understand this.
       window.location.href = "./index.html";
     });
     qs("profileBtn").addEventListener("click", () => (window.location.href = "./dashboard.html"));
+    qs("leaderboardBtn").addEventListener("click", () => (window.location.href = "./leaderboard.html"));
     qs("adminBtn").addEventListener("click", () => (window.location.href = "./admin.html"));
 
     if (await isAdmin()) qs("adminBtn").style.display = "inline-block";

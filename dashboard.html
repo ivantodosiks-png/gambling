@@ -34,6 +34,13 @@
         <div id="email" style="margin:6px 0 14px; font-size: 16px;"></div>
         <div class="muted">User ID:</div>
         <div><code id="userId"></code></div>
+
+        <div style="margin-top:16px;" class="muted">Nickname (for leaderboard):</div>
+        <div style="display:flex; gap:10px; align-items:center; margin-top:8px; flex-wrap:wrap;">
+          <input id="nick" placeholder="Your nickname..." style="flex:1 1 240px; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.04); color:#e9edf7;" />
+          <button id="saveNickBtn" style="background: rgba(255,255,255,0.08); color:#e9edf7; border: 1px solid rgba(255,255,255,0.14);">Save</button>
+        </div>
+        <div class="muted" id="nickMsg" style="margin-top:8px;"></div>
         <div style="margin-top:14px;" class="muted">Profile row (public.profiles):</div>
         <div class="muted" id="profileStatus" style="margin-top:6px;"></div>
         <div style="margin-top:18px;" class="muted">
@@ -75,10 +82,13 @@
         document.getElementById("userId").textContent = user.id;
 
         const profileStatus = document.getElementById("profileStatus");
+        const nickEl = document.getElementById("nick");
+        const nickMsg = document.getElementById("nickMsg");
+        const saveNickBtn = document.getElementById("saveNickBtn");
         try {
           const { data: profile, error } = await sb
             .from("profiles")
-            .select("id,email,created_at,balance")
+            .select("id,email,created_at,balance,username")
             .eq("id", user.id)
             .maybeSingle();
 
@@ -87,6 +97,7 @@
             profileStatus.textContent = "Not found. Run the SQL from supabase_profiles.sql (profile trigger).";
           } else {
             profileStatus.textContent = `OK: ${profile.email} | balance=${profile.balance} | ${profile.created_at}`;
+            nickEl.value = profile.username || "";
           }
         } catch (e) {
           const msg = e?.message || "";
@@ -97,6 +108,20 @@
             profileStatus.textContent = msg ? `Profiles error: ${msg}` : "Profiles error";
           }
         }
+
+        function setNickMsg(t) {
+          nickMsg.textContent = t || "";
+        }
+
+        saveNickBtn.addEventListener("click", async () => {
+          const username = String(nickEl.value || "").trim().slice(0, 24);
+          if (!username) return setNickMsg("Enter a nickname (1-24 chars).");
+          saveNickBtn.disabled = true;
+          const { error } = await sb.from("profiles").update({ username }).eq("id", user.id);
+          saveNickBtn.disabled = false;
+          if (error) return setNickMsg(`Save error: ${error.message}`);
+          setNickMsg("Saved. You should appear in the leaderboard.");
+        });
 
         document.getElementById("toSiteBtn").addEventListener("click", () => {
           window.location.href = "./site.html";
