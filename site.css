@@ -450,8 +450,8 @@ main > .wrap {
 
 .roulette-stage-wrap {
   display: grid;
-  gap: 14px;
-  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  grid-template-rows: minmax(0, 1.2fr) minmax(0, 0.9fr);
   min-height: 0;
 }
 
@@ -600,8 +600,8 @@ main > .wrap {
 .roulette-table-wrap::-webkit-scrollbar { width: 0; height: 0; }
 .roulette-table { display: grid; gap: 10px; }
 .rt-grid {
-  --z: clamp(40px, 5.3vh, 60px);
-  --c: clamp(28px, 4.3vh, 40px);
+  --z: clamp(50px, 6.5vh, 70px);
+  --c: clamp(38px, 5.5vh, 52px);
   display: grid;
   grid-template-columns: var(--z) repeat(12, var(--c));
   gap: 5px;
@@ -618,6 +618,7 @@ main > .wrap {
   background: rgba(255,255,255,0.04);
   color: rgba(233,237,247,0.98);
   font-weight: 1000;
+  font-size: 16px;
   padding: 0;
   display: grid;
   place-items: center;
@@ -634,7 +635,7 @@ main > .wrap {
 .rbet.red { background: rgba(255,92,122,0.14); border-color: rgba(255,92,122,0.26); }
 .rbet.black { background: rgba(18,22,42,0.62); border-color: rgba(255,255,255,0.10); }
 .rbet.green { background: rgba(54,211,153,0.14); border-color: rgba(54,211,153,0.26); color: #07110c; }
-.rbet.outside { font-size: 12px; letter-spacing: -0.2px; background: rgba(255,255,255,0.03); }
+.rbet.outside { font-size: 14px; letter-spacing: -0.2px; background: rgba(255,255,255,0.03); }
 .rbet.outside.red { background: rgba(255,77,109,0.16); color: rgba(233,237,247,0.98); }
 .rbet.outside.black { background: rgba(22,26,43,0.75); color: rgba(233,237,247,0.98); }
 

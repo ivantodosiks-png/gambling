@@ -532,8 +532,8 @@
     const finalBallAngle = Math.random() * 360;
     
     // Determine which pocket this angle corresponds to
-    // Pocket 0 is centered at 0 degrees, pocket 1 at slot degrees, etc.
-    const pocketIdxAtAngle = Math.floor((finalBallAngle + slot / 2) / slot) % POCKETS.length;
+    // Each pocket spans from i*slot to (i+1)*slot degrees
+    const pocketIdxAtAngle = Math.floor(finalBallAngle / slot) % POCKETS.length;
     const rolled = POCKETS[pocketIdxAtAngle];
 
     // Slower wheel spin; ball animation runs slightly faster (see animateWheelBall).
