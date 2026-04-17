@@ -254,6 +254,7 @@
 
     STATE.roulette.spinning = true;
     qs("rouletteSpinBtn").disabled = true;
+    document.body.classList.add("roulette-spinning");
 
     setBalance(STATE.balance - bet);
 
@@ -309,6 +310,7 @@
 
     STATE.roulette.spinning = false;
     qs("rouletteSpinBtn").disabled = false;
+    document.body.classList.remove("roulette-spinning");
   }
 
   // ---- Mines ----

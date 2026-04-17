@@ -1,4 +1,5 @@
 :root {
+  color-scheme: dark;
   --bg0: #070a14;
   --bg1: #0b1020;
   --card: rgba(255, 255, 255, 0.06);
@@ -10,6 +11,7 @@
   --black: #161a2b;
   --yellow: #ffd166;
   --cyan: #7dd3fc;
+  --shadow: 0 18px 40px rgba(0,0,0,0.45);
 }
 
 * { box-sizing: border-box; }
@@ -18,10 +20,20 @@ body {
   margin: 0;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   color: var(--text);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   background:
     radial-gradient(1200px 700px at 18% 0%, rgba(51, 209, 143, 0.16), transparent 60%),
     radial-gradient(900px 540px at 90% 20%, rgba(125, 211, 252, 0.13), transparent 55%),
     var(--bg1);
+}
+
+main { animation: fadeUp 420ms ease both; }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 header {
@@ -33,7 +45,7 @@ header {
   border-bottom: 1px solid var(--line);
 }
 
-.wrap { max-width: 1080px; margin: 0 auto; padding: 14px; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 12px; }
 .row { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
 .brand { display: flex; align-items: center; gap: 12px; }
 .logo {
@@ -63,10 +75,13 @@ button {
   font-weight: 900;
   color: #07110c;
   background: var(--green);
+  transition: transform 140ms ease, filter 140ms ease, background 140ms ease, border-color 140ms ease;
 }
 button:disabled { opacity: 0.65; cursor: not-allowed; }
 button.secondary { background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid rgba(255,255,255,0.14); }
 button.ghost { background: transparent; color: var(--text); border: 1px solid rgba(255,255,255,0.14); }
+button:hover { filter: brightness(1.05); }
+button:active { transform: translateY(1px) scale(0.99); }
 
 .tabs { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
 .tab {
@@ -79,9 +94,13 @@ button.ghost { background: transparent; color: var(--text); border: 1px solid rg
 }
 .tab.active { border-color: rgba(51,209,143,0.55); box-shadow: 0 0 0 3px rgba(51,209,143,0.14) inset; }
 
-main .grid { display: grid; grid-template-columns: 1fr; gap: 14px; padding: 18px 16px 26px; }
-@media (min-width: 940px) {
-  main .grid { grid-template-columns: 1.3fr 0.7fr; gap: 16px; }
+main {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+main > .wrap {
+  height: 100%;
+  overflow: hidden;
 }
 
 .card {
@@ -89,13 +108,14 @@ main .grid { display: grid; grid-template-columns: 1fr; gap: 14px; padding: 18px
   border: 1px solid var(--line);
   border-radius: 18px;
   padding: 14px;
+  box-shadow: var(--shadow);
 }
 
 .card h2 { margin: 0 0 10px; font-size: 18px; }
 .card h3 { margin: 0 0 10px; font-size: 16px; }
 
 .view { display: none; }
-.view.active { display: block; }
+.view.active { display: block; height: 100%; overflow: hidden; }
 
 /* Controls */
 .ctrl-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
@@ -129,6 +149,7 @@ main .grid { display: grid; grid-template-columns: 1fr; gap: 14px; padding: 18px
   min-width: 210px;
 }
 .select:focus { outline: none; border-color: rgba(125, 211, 252, 0.55); box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.14); }
+.select option { background: #0b1020; color: var(--text); }
 
 .range { width: min(320px, 100%); }
 
@@ -138,16 +159,17 @@ main .grid { display: grid; grid-template-columns: 1fr; gap: 14px; padding: 18px
 
 /* Roulette */
 .roulette-stage { position: relative; }
+.roulette-stage { overflow: hidden; }
 .roulette-window {
   position: relative;
   overflow: hidden;
   border-radius: 18px;
   border: 1px solid rgba(255,255,255,0.14);
   background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
-  height: 102px;
+  height: 112px;
 }
 .roulette-track {
-  height: 102px;
+  height: 112px;
   display: flex;
   gap: 10px;
   align-items: center;
@@ -156,13 +178,13 @@ main .grid { display: grid; grid-template-columns: 1fr; gap: 14px; padding: 18px
   will-change: transform;
 }
 .pocket {
-  width: 64px;
-  height: 70px;
+  width: 66px;
+  height: 76px;
   border-radius: 16px;
   display: grid;
   place-items: center;
   font-weight: 1000;
-  font-size: 20px;
+  font-size: 26px;
   border: 1px solid rgba(255,255,255,0.12);
   box-shadow: 0 10px 22px rgba(0,0,0,0.35);
   user-select: none;
@@ -177,10 +199,12 @@ main .grid { display: grid; grid-template-columns: 1fr; gap: 14px; padding: 18px
   left: 50%;
   transform: translateX(-50%);
   width: 4px;
-  height: 102px;
+  height: 112px;
   background: rgba(255, 209, 102, 0.95);
   box-shadow: 0 0 0 3px rgba(255,209,102,0.14);
 }
+.roulette-spinning .marker { animation: markerPulse 520ms ease-in-out infinite; }
+@keyframes markerPulse { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.45); } }
 .marker:before, .marker:after {
   content: "";
   position: absolute;
@@ -233,16 +257,17 @@ main .grid { display: grid; grid-template-columns: 1fr; gap: 14px; padding: 18px
   display: grid;
   grid-template-columns: 1fr;
   gap: 12px;
+  height: 100%;
 }
 @media (min-width: 900px) {
-  .mines-layout { grid-template-columns: 320px 1fr; align-items: start; }
+  .mines-layout { grid-template-columns: 300px 1fr; align-items: stretch; }
 }
 
 .mines-panel {
   background: rgba(10, 18, 32, 0.86);
   border: 1px solid rgba(255,255,255,0.10);
   border-radius: 16px;
-  padding: 12px;
+  padding: 10px;
 }
 
 .mode-pill {
@@ -308,8 +333,11 @@ main .grid { display: grid; grid-template-columns: 1fr; gap: 14px; padding: 18px
   border: 1px solid rgba(255,255,255,0.10);
   border-radius: 16px;
   padding: 12px;
-  max-height: calc(100vh - 210px);
-  overflow: auto;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 .board-top {
   display:flex;
@@ -321,8 +349,12 @@ main .grid { display: grid; grid-template-columns: 1fr; gap: 14px; padding: 18px
 
 .mines-grid {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   grid-template-columns: repeat(5, 1fr);
+  overflow: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+  padding-right: 2px;
 }
 .mine-cell {
   width: 100%;
@@ -332,7 +364,7 @@ main .grid { display: grid; grid-template-columns: 1fr; gap: 14px; padding: 18px
   background: rgba(255,255,255,0.04);
   display: grid;
   place-items: center;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 1000;
   transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
 }
@@ -343,9 +375,9 @@ main .grid { display: grid; grid-template-columns: 1fr; gap: 14px; padding: 18px
   .logo { width: 34px; height: 34px; border-radius: 11px; }
   .select { min-width: 100%; }
   .pocket { width: 58px; height: 64px; font-size: 18px; }
-  .roulette-window { height: 96px; }
-  .roulette-track { height: 96px; }
-  .marker { height: 96px; }
+  .roulette-window { height: 104px; }
+  .roulette-track { height: 104px; }
+  .marker { height: 104px; }
   .mines-grid { gap: 6px; }
   .mine-cell { border-radius: 11px; font-size: 16px; }
 }
