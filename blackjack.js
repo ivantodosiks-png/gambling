@@ -123,14 +123,26 @@ const BJ = (() => {
   // ============ UI FUNCTIONS ============
   const renderRoomsList = async () => {
     try {
+      console.log('📋 Загружаем список комнат...');
+      
       const response = await sb.rpc('get_available_blackjack_rooms', { p_limit: 50 });
-      const rooms = response;
+      
+      console.log('Ответ от RPC:', response);
+      
+      if (response.error) {
+        console.error('❌ Ошибка RPC:', response.error);
+        showMessage('bjLobbyMsg', `Ошибка загрузки комнат: ${response.error.message}`, 'error');
+        return;
+      }
+
+      const rooms = response.data || response || [];
+      console.log('✅ Комнат найдено:', rooms.length);
       
       const list = document.getElementById('bjRoomsList');
       list.innerHTML = '';
       
       if (!rooms || rooms.length === 0) {
-        list.innerHTML = '<div class="bj-room-item" style="cursor:auto; color: var(--muted);">No rooms available</div>';
+        list.innerHTML = '<div class="bj-room-item" style="cursor:auto; color: var(--muted);">Нет доступных комнат</div>';
         return;
       }
       
@@ -139,15 +151,16 @@ const BJ = (() => {
         item.className = 'bj-room-item';
         item.innerHTML = `
           <div>
-            <div style="font-weight: 600;">Room ${room.id.substring(0, 8)}</div>
-            <div style="font-size: 12px; color: var(--muted);">Min: ${room.min_bet} | Players: ${room.current_players}/${room.max_players}</div>
+            <div style="font-weight: 600;">Комната ${room.id.substring(0, 8)}</div>
+            <div style="font-size: 12px; color: var(--muted);">Мин ставка: ${room.min_bet} | Игроков: ${room.current_players}/${room.max_players}</div>
           </div>
-          <button class="secondary" type="button" onclick="BJ.joinRoom('${room.id}')">Join</button>
+          <button class="secondary" type="button" onclick="BJ.joinRoom('${room.id}')">Присоединиться</button>
         `;
         list.appendChild(item);
       }
     } catch (error) {
-      console.error('Error rendering rooms:', error);
+      console.error('❌ Критическая ошибка renderRoomsList:', error);
+      showMessage('bjLobbyMsg', `Ошибка: ${error.message}`, 'error');
     }
   };
 
@@ -979,6 +992,9 @@ const BJ = (() => {
 
   // ============ INITIALIZATION ============
   const init = () => {
+    console.log('🎰 Инициализация Blackjack...');
+    console.log('sb объект есть?', !!sb);
+    
     document.getElementById('bjCreateRoomBtn')?.addEventListener('click', createRoom);
     document.getElementById('bjJoinRoomBtn')?.addEventListener('click', joinRoomByInput);
     document.getElementById('bjLeaveTableBtn')?.addEventListener('click', leaveRoom);
@@ -989,21 +1005,28 @@ const BJ = (() => {
     document.getElementById('bjStandBtn')?.addEventListener('click', stand);
     document.getElementById('bjDoubleBtn')?.addEventListener('click', doubleDown);
 
+    console.log('✅ Обработчики событий установлены');
+    
     renderRoomsList();
     setInterval(renderRoomsList, 3000);
 
     updateBalance();
     setInterval(updateBalance, 3000);
+    
+    console.log('🎮 Blackjack готов к работе!');
   };
 
   const updateBalance = async () => {
     try {
       const profile = await getProfile();
       if (profile) {
-        document.getElementById('bjBalanceValue').textContent = profile.balance;
+        document.getElementById('bjBalanceValue').textContent = profile.balance || 0;
+        console.log('✅ Баланс загружен:', profile.balance);
+      } else {
+        console.warn('⚠️ Профиль не получен при загрузке баланса');
       }
     } catch (error) {
-      console.error('Error updating balance:', error);
+      console.error('❌ Ошибка обновления баланса:', error);
     }
   };
 
