@@ -272,7 +272,7 @@ main > .wrap {
   border-radius: 18px;
   border: 1px solid rgba(255,255,255,0.14);
   background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
-  height: 112px;
+  height: 130px;
 }
 .roulette-window:after {
   content: "";
@@ -284,9 +284,9 @@ main > .wrap {
     linear-gradient(90deg, rgba(11,16,32,0.95), rgba(11,16,32,0) 16%, rgba(11,16,32,0) 84%, rgba(11,16,32,0.95));
 }
 .roulette-track {
-  height: 112px;
+  height: 130px;
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
   padding: 0 18px;
   transform: translate3d(0, 0, 0);
@@ -294,16 +294,17 @@ main > .wrap {
 }
 .roulette-track { position: relative; z-index: 1; }
 .pocket {
-  width: 76px;
-  height: 74px;
-  border-radius: 16px;
+  width: 88px;
+  height: 88px;
+  border-radius: 18px;
   display: grid;
   place-items: center;
   font-weight: 1000;
-  font-size: 30px;
-  border: 1px solid rgba(255,255,255,0.12);
-  box-shadow: 0 10px 22px rgba(0,0,0,0.35);
+  font-size: 38px;
+  border: 2px solid rgba(255,255,255,0.16);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.45);
   user-select: none;
+  flex-shrink: 0;
 }
 .pocket { letter-spacing: -0.5px; }
 .pocket.red { background: linear-gradient(135deg, rgba(255,77,109,0.95), rgba(255,77,109,0.72)); }
@@ -460,14 +461,14 @@ main > .wrap {
 }
 
 .roulette-wheel {
-  width: min(380px, 42vh, 92vw);
+  width: min(420px, 50vh, 94vw);
   aspect-ratio: 1 / 1;
   margin: 0 auto;
   position: relative;
   border-radius: 50%;
   background: rgba(255,255,255,0.02);
   border: 1px solid rgba(255,255,255,0.14);
-  box-shadow: 0 26px 60px rgba(0,0,0,0.55);
+  box-shadow: 0 28px 70px rgba(0,0,0,0.60), 0 0 80px rgba(255, 209, 102, 0.12);
   overflow: hidden;
 }
 .roulette-wheel:before {
@@ -815,10 +816,10 @@ body.win-flash .roulette-wheel { box-shadow: 0 26px 60px rgba(0,0,0,0.55), var(-
   .pill { font-size: 12px; }
   .logo { width: 32px; height: 32px; border-radius: 11px; }
   .select { min-width: 100%; }
-  .pocket { width: 56px; height: 62px; font-size: 22px; border-radius: 15px; }
-  .roulette-window { height: 104px; }
-  .roulette-track { height: 104px; }
-  .marker { height: 104px; }
+  .pocket { width: 68px; height: 70px; font-size: 28px; border-radius: 15px; }
+  .roulette-window { height: 120px; }
+  .roulette-track { height: 120px; }
+  .marker { height: 120px; }
   .mines-grid { gap: 6px; }
   .mines-board { height: min(520px, 56vh); }
   .mine-cell { border-radius: 11px; }
@@ -838,6 +839,13 @@ body.win-flash .roulette-wheel { box-shadow: 0 26px 60px rgba(0,0,0,0.55), var(-
 
 .mine-pop { animation: pop 220ms ease; }
 @keyframes pop { from { transform: scale(0.94); } to { transform: scale(1); } }
+
+@keyframes resultFadeInOut {
+  0% { opacity: 0; transform: scale(0.8) translateY(20px); }
+  10% { opacity: 1; transform: scale(1) translateY(0); }
+  90% { opacity: 1; transform: scale(1) translateY(0); }
+  100% { opacity: 0; transform: scale(0.8) translateY(-20px); }
+}
 
 .kv { display: flex; gap: 10px; flex-wrap: wrap; }
 .kv .k { color: var(--muted); font-size: 12px; font-weight: 900; }
