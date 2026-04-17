@@ -21,11 +21,11 @@
       <div class="card">
         <div class="row">
           <div>
-            <h2 style="margin:0 0 6px;">Ты вошёл</h2>
-            <div class="muted">Эта страница защищена: без сессии сюда не пускает.</div>
+            <h2 style="margin:0 0 6px;">You are logged in</h2>
+            <div class="muted">This page is protected: you need a session.</div>
           </div>
           <div class="row" style="justify-content:flex-end;">
-            <button id="toSiteBtn" style="background: rgba(255,255,255,0.08); color:#e9edf7; border: 1px solid rgba(255,255,255,0.14);">Перейти на сайт</button>
+            <button id="toSiteBtn" style="background: rgba(255,255,255,0.08); color:#e9edf7; border: 1px solid rgba(255,255,255,0.14);">Go to site</button>
             <button id="logoutBtn">Logout</button>
           </div>
         </div>
@@ -37,14 +37,14 @@
         <div style="margin-top:14px;" class="muted">Profile row (public.profiles):</div>
         <div class="muted" id="profileStatus" style="margin-top:6px;"></div>
         <div style="margin-top:18px;" class="muted">
-          Вернуться на <a href="./index.html">страницу логина</a>.
+          Back to the <a href="./index.html">login page</a>.
         </div>
       </div>
     </div>
 
-    <!-- Local (node server.js): /supabase-config.js из .env. На Vercel этот файл может быть 404 — не страшно. -->
+    <!-- Local (node server.js): /supabase-config.js from .env. On Vercel it can be 404 (ok). -->
     <script src="/supabase-config.js"></script>
-    <!-- Для Vercel/статики: вставь ключи в supabase-config.js -->
+    <!-- For Vercel/static: put keys into supabase-config.js -->
     <script src="./supabase-config.js"></script>
     <!-- Supabase JS SDK (UMD) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -78,7 +78,7 @@
 
           if (error) throw error;
           if (!profile) {
-            profileStatus.textContent = "Не найдено. Запусти SQL из supabase_profiles.sql (триггер профиля).";
+            profileStatus.textContent = "Not found. Run the SQL from supabase_profiles.sql (profile trigger).";
           } else {
             profileStatus.textContent = `OK: ${profile.email} | balance=${profile.balance} | ${profile.created_at}`;
           }
@@ -86,9 +86,9 @@
           const msg = e?.message || "";
           if (msg.includes("column") && msg.includes("balance") && msg.includes("does not exist")) {
             profileStatus.textContent =
-              "Нет колонки balance. Выполни в Supabase SQL Editor: ALTER TABLE public.profiles ADD COLUMN balance bigint NOT NULL DEFAULT 5000;";
+              "Missing balance column. Run in Supabase SQL Editor: ALTER TABLE public.profiles ADD COLUMN balance bigint NOT NULL DEFAULT 5000;";
           } else {
-            profileStatus.textContent = msg ? `Ошибка profiles: ${msg}` : "Ошибка profiles";
+            profileStatus.textContent = msg ? `Profiles error: ${msg}` : "Profiles error";
           }
         }
 

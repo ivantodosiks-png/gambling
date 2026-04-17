@@ -26,8 +26,8 @@
   <body>
     <div class="wrap">
       <div class="card">
-        <h2 style="margin:0 0 6px;">Регистрация / Логин</h2>
-        <div class="muted">Supabase Auth (email + password). Пароли вручную не храним.</div>
+        <h2 style="margin:0 0 6px;">Register / Login</h2>
+        <div class="muted">Supabase Auth (email + password). No manual password storage.</div>
 
         <div class="tabs" style="margin-top:16px;">
           <button class="tab active" id="tabLogin" type="button">Login</button>
@@ -39,15 +39,13 @@
           <input id="email" type="email" placeholder="you@example.com" required />
 
           <label for="password">Password</label>
-          <input id="password" type="password" placeholder="минимум 6 символов" required />
+          <input id="password" type="password" placeholder="at least 6 characters" required />
 
           <button class="primary" id="submitBtn" type="submit">Login</button>
           <div class="msg" id="msg"></div>
         </form>
 
-        <div class="muted">
-          Настройка ключей: смотри `supabase.js` и `.env` (сервер отдаёт `/supabase-config.js`).
-        </div>
+        <div class="muted">Keys setup: see <code>supabase-config.js</code> and <code>supabase.js</code>.</div>
       </div>
     </div>
 
@@ -103,14 +101,14 @@
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
-        if (!window.sb) return setError("Supabase не настроен. Заполни url/anonKey в `supabase-config.js` и сделай redeploy.");
+        if (!window.sb) return setError("Supabase is not configured. Fill url/anonKey in `supabase-config.js` and redeploy.");
 
         const email = emailEl.value.trim();
         const password = passEl.value;
-        if (!email || !password) return setError("Введите email и пароль");
+        if (!email || !password) return setError("Enter email and password");
 
         submitBtn.disabled = true;
-        submitBtn.textContent = "Подожди...";
+        submitBtn.textContent = "Please wait...";
         msg.textContent = "";
         msg.className = "msg";
 
@@ -119,22 +117,22 @@
             const { data, error } = await window.sb.auth.signUp({ email, password });
             if (error) throw error;
 
-            // После регистрации: переключаем на логин (как ты просил).
+            // After register: switch to login.
             setMode("login");
             passEl.value = "";
 
-            // Если включено подтверждение email, логин не сработает пока не подтвердить.
+            // If email confirmation is enabled, session may be null.
             const needsConfirm = !data?.session;
             setOk(needsConfirm
-              ? "Аккаунт создан. Проверь почту и подтверди email, потом логинься."
-              : "Аккаунт создан. Теперь залогинься.");
+              ? "Account created. Check your email and confirm it, then login."
+              : "Account created. Now login.");
           } else {
             const { error } = await window.sb.auth.signInWithPassword({ email, password });
             if (error) throw error;
             window.location.href = "./site.html";
           }
         } catch (err) {
-          setError(err?.message || "Ошибка");
+          setError(err?.message || "Error");
         } finally {
           submitBtn.disabled = false;
           submitBtn.textContent = mode === "login" ? "Login" : "Register";
@@ -143,7 +141,7 @@
 
       // Если логин произошёл в другой вкладке — отправляем на dashboard.
       if (!window.sb) {
-        setError("Нет Supabase подключения. Проверь `supabase-config.js` и ключи.");
+        setError("No Supabase connection. Check `supabase-config.js` and keys.");
       } else {
         window.sb.auth.onAuthStateChange((_event, session) => {
           if (session) window.location.href = "./site.html";

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Сайт</title>
+    <title>Site</title>
     <style>
       :root { color-scheme: dark; }
       body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: #0b1020; color: #e9edf7; }
@@ -23,12 +23,12 @@
       <div class="wrap">
         <div class="row">
           <div>
-            <div style="font-weight:900; font-size:18px;">Сайт</div>
+            <div style="font-weight:900; font-size:18px;">Site</div>
             <div class="muted">ID: <code id="userId">-</code></div>
           </div>
           <div class="row" style="justify-content:flex-end;">
-            <button id="toDashboardBtn" class="secondary" type="button">Профиль</button>
-            <button id="toAdminBtn" class="secondary" type="button" style="display:none;">Админка</button>
+            <button id="toDashboardBtn" class="secondary" type="button">Profile</button>
+            <button id="toAdminBtn" class="secondary" type="button" style="display:none;">Admin</button>
             <button id="logoutBtn" type="button">Logout</button>
           </div>
         </div>
@@ -37,8 +37,8 @@
 
     <main class="wrap">
       <div class="card">
-        <h2 style="margin:0 0 8px;">Добро пожаловать</h2>
-        <div class="muted" style="margin-bottom:12px;">Это “сам сайт” после логина. Сюда можно дальше вставить твой контент/игру.</div>
+        <h2 style="margin:0 0 8px;">Welcome</h2>
+        <div class="muted" style="margin-bottom:12px;">This is the main site page after login. Put your content/game here.</div>
         <div class="muted">Email: <span id="email">-</span></div>
         <div class="muted" style="margin-top:8px;">Balance: <span id="balance">-</span></div>
         <div class="muted" id="balanceHint" style="margin-top:8px;"></div>
@@ -83,9 +83,9 @@
           const msg = e?.message || "";
           if (msg.includes("column") && msg.includes("balance") && msg.includes("does not exist")) {
             hintEl.textContent =
-              "Колонки balance нет. Выполни SQL: ALTER TABLE public.profiles ADD COLUMN balance bigint NOT NULL DEFAULT 5000;";
+              "Missing balance column. Run SQL: ALTER TABLE public.profiles ADD COLUMN balance bigint NOT NULL DEFAULT 5000;";
           } else {
-            hintEl.textContent = msg ? `Ошибка balance: ${msg}` : "Ошибка balance";
+            hintEl.textContent = msg ? `Balance error: ${msg}` : "Balance error";
           }
           balanceEl.textContent = "-";
         }
@@ -114,4 +114,3 @@
     </script>
   </body>
 </html>
-

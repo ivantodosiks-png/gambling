@@ -30,7 +30,7 @@
         <div class="row">
           <div>
             <h2 style="margin:0 0 4px;">Admin panel</h2>
-            <div class="muted">Список пользователей из <code>public.profiles</code> и изменение <code>balance</code>.</div>
+            <div class="muted">Users from <code>public.profiles</code> and editing <code>balance</code>.</div>
           </div>
           <div class="row" style="justify-content:flex-end;">
             <button id="refreshBtn" class="secondary" type="button">Refresh</button>
@@ -38,7 +38,7 @@
           </div>
         </div>
         <div style="margin-top:12px;">
-          <input id="search" placeholder="Поиск по email или UUID..." />
+          <input id="search" placeholder="Search by email or UUID..." />
           <div id="status" class="muted" style="margin-top:8px;"></div>
         </div>
       </div>
@@ -90,16 +90,16 @@
 
         const { data: isAdmin, error: adminErr } = await sb.rpc("is_admin");
         if (adminErr) {
-          setStatus(`Ошибка is_admin: ${adminErr.message}`, "err");
+          setStatus(`is_admin error: ${adminErr.message}`, "err");
           return;
         }
         if (!isAdmin) {
-          setStatus("Нет доступа. Добавь себя в таблицу public.admins (SQL Editor).", "err");
+          setStatus("No access. Add yourself to public.admins (SQL Editor).", "err");
           rowsEl.innerHTML = "";
           return;
         }
 
-        setStatus("OK: admin", "ok");
+          setStatus("OK: admin", "ok");
 
         let all = [];
 
@@ -126,7 +126,7 @@
         }
 
         async function load() {
-          setStatus("Загружаю пользователей...");
+          setStatus("Loading users...");
           const { data, error } = await sb
             .from("profiles")
             .select("id,email,balance,created_at")
@@ -135,14 +135,14 @@
           if (error) {
             const msg = error.message || "";
             if (msg.includes("column") && msg.includes("balance") && msg.includes("does not exist")) {
-              setStatus("Нет колонки balance. Выполни SQL: ALTER TABLE public.profiles ADD COLUMN balance bigint NOT NULL DEFAULT 5000;", "err");
+              setStatus("Missing balance column. Run SQL: ALTER TABLE public.profiles ADD COLUMN balance bigint NOT NULL DEFAULT 5000;", "err");
             } else {
-              setStatus(`Ошибка загрузки: ${msg}`, "err");
+              setStatus(`Load error: ${msg}`, "err");
             }
             return;
           }
           all = data || [];
-          setStatus(`Пользователей: ${all.length}`, "ok");
+          setStatus(`Users: ${all.length}`, "ok");
           render();
         }
 
@@ -152,14 +152,14 @@
           const id = btn.getAttribute("data-id");
           const input = rowsEl.querySelector(`input.bal[data-id="${id}"]`);
           const balance = Number(input?.value ?? 0);
-          if (!Number.isFinite(balance) || balance < 0) return setStatus("Balance должен быть числом >= 0", "err");
+          if (!Number.isFinite(balance) || balance < 0) return setStatus("Balance must be a number >= 0", "err");
 
           btn.disabled = true;
           const { error } = await sb.from("profiles").update({ balance }).eq("id", id);
           btn.disabled = false;
 
-          if (error) return setStatus(`Ошибка update: ${error.message}`, "err");
-          setStatus("Сохранено", "ok");
+          if (error) return setStatus(`Update error: ${error.message}`, "err");
+          setStatus("Saved", "ok");
           const idx = all.findIndex((x) => x.id === id);
           if (idx >= 0) all[idx].balance = balance;
         });
