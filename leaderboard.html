@@ -131,16 +131,20 @@
 
         let all = [];
 
+        function getNickname(profile) {
+          return String(profile.username || profile.nickname || profile.nick || profile.name || "-");
+        }
+
         function render() {
           const q = (qEl.value || "").trim().toLowerCase();
-          const list = q ? all.filter((x) => String(x.username || "").toLowerCase().includes(q)) : all;
+          const list = q ? all.filter((x) => getNickname(x).toLowerCase().includes(q)) : all;
           rowsEl.innerHTML = "";
           for (let i = 0; i < list.length; i += 1) {
             const r = list[i];
             const tr = document.createElement("tr");
             tr.innerHTML = `
               <td class="rank">${i + 1}</td>
-              <td>${String(r.username || "-")}</td>
+              <td>${getNickname(r)}</td>
               <td class="coins">${fmt(r.balance)}</td>
               <td class="idcell">${String(r.id || "").slice(0, 8)}…</td>
             `;
@@ -150,7 +154,7 @@
 
         async function load() {
           setMsg("Loading...", "");
-          const { data, error } = await sb.rpc("get_leaderboard", { p_limit: 100 });
+          const { data, error } = await sb.rpc("get_leaderboard", { p_limit: 200 });
           if (error) {
             setMsg(`Leaderboard error: ${error.message}`, "err");
             return;
