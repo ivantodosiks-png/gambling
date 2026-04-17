@@ -451,12 +451,12 @@ main > .wrap {
 .roulette-stage-wrap {
   display: grid;
   gap: 12px;
-  grid-template-rows: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(0, 0.45fr) minmax(0, 0.55fr);
   min-height: 0;
 }
 
 .roulette-wheel {
-  width: min(420px, 40vh, 92vw);
+  width: min(340px, 35vh, 92vw);
   aspect-ratio: 1 / 1;
   margin: 0 auto;
   position: relative;
