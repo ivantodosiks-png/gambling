@@ -77,3 +77,35 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
 after insert on auth.users
 for each row execute procedure public.handle_new_user();
+
+-- 6) Maintenance mode (admin toggle)
+-- Public can READ only the 'maintenance' row (so even logged-out users can see the banner).
+create table if not exists public.app_settings (
+  key text primary key,
+  value jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.app_settings enable row level security;
+
+-- Ensure the row exists
+insert into public.app_settings (key, value)
+values ('maintenance', jsonb_build_object('enabled', false, 'message', ''))
+on conflict (key) do nothing;
+
+-- Anyone (anon + authenticated) can read only maintenance row
+drop policy if exists "app_settings_select_maintenance" on public.app_settings;
+create policy "app_settings_select_maintenance"
+on public.app_settings
+for select
+to anon, authenticated
+using (key = 'maintenance');
+
+-- Only admins can insert/update settings
+drop policy if exists "app_settings_admin_write" on public.app_settings;
+create policy "app_settings_admin_write"
+on public.app_settings
+for all
+to authenticated
+using (public.is_admin())
+with check (public.is_admin());

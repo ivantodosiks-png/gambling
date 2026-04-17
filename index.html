@@ -57,6 +57,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
     <!-- Создаёт window.sb -->
     <script src="./supabase.js"></script>
+    <script src="./maintenance.js"></script>
     <script>
       const tabLogin = document.getElementById("tabLogin");
       const tabRegister = document.getElementById("tabRegister");
@@ -96,7 +97,14 @@
         if (data.session) window.location.href = "./dashboard.html";
       }
 
-      goIfAuthed();
+      (async () => {
+        // Maintenance mode blocks everyone except admins with an active session.
+        if (window.maintenanceGuard) {
+          const blocked = await window.maintenanceGuard(window.sb);
+          if (blocked) return;
+        }
+        await goIfAuthed();
+      })();
 
       form.addEventListener("submit", async (e) => {
         e.preventDefault();

@@ -41,62 +41,65 @@
         <div id="globalMsg" class="msg"></div>
         <section id="rouletteView" class="view active">
           <div class="card">
-            <div class="ctrl-row">
-              <div>
-                <h2 style="margin:0 0 4px;">Roulette</h2>
-                <div class="muted">Quick roulette (virtual coins only).</div>
-              </div>
-              <div class="ctrl">
-                <label>Bet</label>
-                <div class="stepper" aria-label="Roulette bet amount">
-                  <button id="betMinus" type="button">-</button>
-                  <div class="value" id="betValue">100</div>
-                  <button id="betPlus" type="button">+</button>
+            <div class="roulette-layout">
+              <aside class="roulette-panel">
+                <div>
+                  <h2 style="margin:0 0 4px;">Roulette</h2>
+                  <div class="muted">Virtual coins only.</div>
                 </div>
-              </div>
-            </div>
 
-            <div class="roulette-stage" style="margin-top:12px;">
-              <div class="roulette-window" id="rouletteWindow">
-                <div class="pointer" aria-hidden="true"></div>
-                <div class="marker"></div>
-                <div class="roulette-track" id="rouletteTrack"></div>
-              </div>
-            </div>
+                <div class="panel-block">
+                  <div class="lbl">Chip value</div>
+                  <div class="chip-row" id="rouletteChipRow">
+                    <button type="button" class="chipv active" data-chip="10">10</button>
+                    <button type="button" class="chipv" data-chip="100">100</button>
+                    <button type="button" class="chipv" data-chip="1000">1k</button>
+                    <button type="button" class="chipv" data-chip="5000">5k</button>
+                    <button type="button" class="chipv" data-chip="10000">10k</button>
+                  </div>
+                  <div class="betbox" style="margin-top:10px;">
+                    <input id="rouletteChipInput" inputmode="numeric" value="10" />
+                    <div class="bet-actions">
+                      <button id="rouletteChipHalf" class="chip" type="button">1/2</button>
+                      <button id="rouletteChipDouble" class="chip" type="button">2x</button>
+                    </div>
+                  </div>
+                  <div class="muted tiny" style="margin-top:6px;">Click a spot on the table to place a chip.</div>
+                </div>
 
-            <div class="stake-panel" style="margin-top:14px;">
-              <div class="ctrl-row">
-                <div class="ctrl">
-                  <label>Bet type</label>
-                  <div class="stepper">
-                    <button id="betTypeColor" type="button">Color</button>
-                    <div class="value" id="rouletteBetType">Color</div>
-                    <button id="betTypeNumber" type="button">Number</button>
+                <div class="panel-block">
+                  <div class="minirow">
+                    <div class="muted">Total bet</div>
+                    <div class="strong" id="rouletteTotalBet">0</div>
+                  </div>
+                  <div class="minirow">
+                    <div class="muted">Bets</div>
+                    <div class="strong" id="rouletteBetsCount">0</div>
                   </div>
                 </div>
-                <div class="ctrl">
-                  <button id="rouletteSpinBtn" type="button">Spin</button>
+
+                <button id="rouletteSpinBtn" class="primary-wide" type="button">Spin</button>
+                <button id="rouletteClearBtn" class="secondary-wide" type="button">Clear bets</button>
+
+                <div class="msg" id="rouletteMsg"></div>
+                <div class="muted" style="margin-top:8px;">Last rolls</div>
+                <div class="history" id="rouletteHistory"></div>
+              </aside>
+
+              <div class="roulette-stage-wrap">
+                <div class="roulette-wheel">
+                  <div class="wheel-pointer" aria-hidden="true"></div>
+                  <div class="wheel-rotor" id="wheelRotor">
+                    <div class="wheel-ring" id="wheelRing"></div>
+                    <div class="wheel-labels" id="wheelLabels"></div>
+                  </div>
+                  <div class="wheel-hub" aria-hidden="true"></div>
+                </div>
+
+                <div class="roulette-table-wrap">
+                  <div class="roulette-table" id="rouletteTable" aria-label="Roulette betting table"></div>
                 </div>
               </div>
-
-              <div id="rouletteColorBox" style="margin-top:12px;">
-                <div class="bet-colors">
-                  <button type="button" data-r-color="red"><span class="swatch red"></span> Red <span class="payout">2x</span></button>
-                  <button type="button" data-r-color="black"><span class="swatch black"></span> Black <span class="payout">2x</span></button>
-                  <button type="button" data-r-color="green"><span class="swatch green"></span> Green <span class="payout">14x</span></button>
-                </div>
-              </div>
-
-              <div id="rouletteNumberBox" style="margin-top:12px; display:none;">
-                <div class="ctrl">
-                  <label>Number</label>
-                  <div id="rouletteNumberGrid" class="bet-numbers" aria-label="Roulette number bet"></div>
-                </div>
-              </div>
-
-              <div class="msg" id="rouletteMsg"></div>
-              <div class="muted" style="margin-top:8px;">Last rolls</div>
-              <div class="history" id="rouletteHistory"></div>
             </div>
           </div>
         </section>
@@ -174,6 +177,7 @@
     <script src="./supabase-config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
     <script src="./supabase.js"></script>
+    <script src="./maintenance.js"></script>
     <script src="./site.js"></script>
   </body>
 </html>
