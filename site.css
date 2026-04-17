@@ -600,8 +600,8 @@ main > .wrap {
 .roulette-table-wrap::-webkit-scrollbar { width: 0; height: 0; }
 .roulette-table { display: grid; gap: 10px; }
 .rt-grid {
-  --z: clamp(42px, 5.5vh, 62px);
-  --c: clamp(32px, 4.5vh, 46px);
+  --z: clamp(48px, 6.2vh, 68px);
+  --c: clamp(40px, 5.5vh, 56px);
   display: grid;
   grid-template-columns: var(--z) repeat(12, var(--c));
   gap: 4px;
