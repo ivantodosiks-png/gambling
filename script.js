@@ -1,4 +1,4 @@
-const multipliers = ["1.2x", "1.5x", "2x", "5x", "10x", "100x"];
+const multipliers = ["0.1x", "0.5x", "1x", "1.2x", "1.5x", "2x", "3x", "5x", "10x", "50x"];
 const START_BALANCE = 5000;
 const USERS_STORAGE_KEY = "gamblingUsersV1";
 const CURRENT_USER_ID_KEY = "gamblingCurrentUserIdV1";
@@ -196,7 +196,7 @@ function buildRouletteTrack() {
   for (let i = 0; i < 140; i += 1) {
     const value = multipliers[i % multipliers.length];
     const card = document.createElement("div");
-    card.className = `multiplier-card ${value === "100x" ? "x100" : ""}`;
+    card.className = `multiplier-card ${value === "50x" ? "x100" : ""}`;
     card.dataset.value = value;
     card.innerHTML = `<span class="value">${value}</span><span class="ball"></span>`;
     ui.ballTrack.appendChild(card);
@@ -227,12 +227,16 @@ function startSimulation() {
   rouletteState.running = true;
   rouletteState.bet = bet;
   rouletteState.target = weightedPick([
-    { value: "1.2x", weight: 38 },
-    { value: "1.5x", weight: 26 },
-    { value: "2x", weight: 18 },
-    { value: "5x", weight: 12 },
-    { value: "10x", weight: 5.5 },
-    { value: "100x", weight: 0.5 }
+    { value: "0.1x", weight: 15 },
+    { value: "0.5x", weight: 20 },
+    { value: "1x", weight: 18 },
+    { value: "1.2x", weight: 15 },
+    { value: "1.5x", weight: 12 },
+    { value: "2x", weight: 10 },
+    { value: "3x", weight: 5 },
+    { value: "5x", weight: 3 },
+    { value: "10x", weight: 1.5 },
+    { value: "50x", weight: 0.5 }
   ]);
   ui.startSimulation.disabled = true;
   ui.rouletteResult.textContent = "Spinning...";
@@ -281,11 +285,19 @@ function spinFrame(ts) {
   ui.ballTrack.style.transform = `translate3d(${rouletteState.x}px, 0, 0)`;
   
   const multiplier = Number(rouletteState.target.replace("x", ""));
-  const win = Math.floor(rouletteState.bet * multiplier);
-  balance += win;
+  let win;
+  if (multiplier >= 1) {
+    win = Math.floor(rouletteState.bet * multiplier);
+    balance += win;
+  } else {
+    win = -Math.floor(rouletteState.bet * (1 - multiplier));
+    balance += win;
+  }
   refreshBalance();
   
-  ui.rouletteResult.textContent = `Result: ${rouletteState.target} | Bet: ${rouletteState.bet} | Win: ${win}`;
+  const resultType = multiplier >= 1 ? "WON" : "LOST";
+  const resultAmount = Math.abs(win);
+  ui.rouletteResult.textContent = `${resultType} ${resultAmount} coins! ${rouletteState.target} | Bet: ${rouletteState.bet} | Profit: ${win > 0 ? '+' : ''}${win}`;
   ui.startSimulation.disabled = false;
 }
 

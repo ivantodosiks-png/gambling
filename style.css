@@ -227,6 +227,15 @@ input {
   box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
 }
 
+.multiplier-card[data-value*="0."] {
+  background: linear-gradient(145deg, #4a1a1a, #341414);
+  border-color: rgba(255, 100, 100, 0.5);
+}
+
+.multiplier-card[data-value*="0."] .value {
+  color: #ff6b6b;
+}
+
 .x100 {
   border-color: rgba(255, 229, 101, 0.9);
   box-shadow: 0 0 16px rgba(255, 229, 101, 0.35);
