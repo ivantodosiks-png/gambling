@@ -245,6 +245,18 @@ input {
   color: var(--muted);
 }
 
+.roulette-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0 0;
+}
+
+#rouletteBet {
+  width: 110px;
+}
+
 .mines-controls {
   display: flex;
   align-items: center;

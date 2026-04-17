@@ -44,13 +44,17 @@
     <section id="rouletteView" class="view">
       <div class="panel glass">
         <h2>Ball / Roulette</h2>
-        <p class="muted">Press Start Simulation - the wheel speeds up, slows down smoothly, and always finishes on the selected multiplier.</p>
+        <p class="muted">Enter your bet and spin. Win based on the multiplier you land on.</p>
         <div class="roulette-wrap">
           <div class="center-line"></div>
           <div id="ballTrack" class="ball-track"></div>
         </div>
-        <button id="startSimulation" class="main-btn">Start Simulation</button>
-        <p id="rouletteResult" class="result-text">Result will appear here</p>
+        <div class="roulette-controls">
+          <label for="rouletteBet">Bet amount:</label>
+          <input id="rouletteBet" type="number" min="10" step="10" value="100">
+          <button id="startSimulation" class="main-btn">Spin Roulette</button>
+        </div>
+        <p id="rouletteResult" class="result-text">Enter bet and click Spin</p>
       </div>
     </section>
 

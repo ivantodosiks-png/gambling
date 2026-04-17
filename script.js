@@ -21,6 +21,7 @@ const ui = {
     admin: document.getElementById("adminView")
   },
   ballTrack: document.getElementById("ballTrack"),
+  rouletteBet: document.getElementById("rouletteBet"),
   startSimulation: document.getElementById("startSimulation"),
   rouletteResult: document.getElementById("rouletteResult"),
   gridSize: document.getElementById("gridSize"),
@@ -64,6 +65,7 @@ const rouletteState = {
   x: 0,
   raf: 0,
   target: "",
+  bet: 0,
   itemWidth: 140,
   spinUntil: 0,
   decelFrom: 0,
@@ -211,8 +213,19 @@ function buildRouletteTrack() {
 
 function startSimulation() {
   if (rouletteState.running) return;
+  
+  const bet = Math.max(10, Number(ui.rouletteBet.value) || 0);
+  if (bet > balance) {
+    ui.rouletteResult.textContent = "Not enough balance for this bet.";
+    return;
+  }
+  
+  balance -= bet;
+  refreshBalance();
+  
   buildRouletteTrack();
   rouletteState.running = true;
+  rouletteState.bet = bet;
   rouletteState.target = weightedPick([
     { value: "1.2x", weight: 38 },
     { value: "1.5x", weight: 26 },
@@ -266,7 +279,13 @@ function spinFrame(ts) {
   cancelAnimationFrame(rouletteState.raf);
   rouletteState.x = rouletteState.decelTo;
   ui.ballTrack.style.transform = `translate3d(${rouletteState.x}px, 0, 0)`;
-  ui.rouletteResult.textContent = `Result: ${rouletteState.target}`;
+  
+  const multiplier = Number(rouletteState.target.replace("x", ""));
+  const win = Math.floor(rouletteState.bet * multiplier);
+  balance += win;
+  refreshBalance();
+  
+  ui.rouletteResult.textContent = `Result: ${rouletteState.target} | Bet: ${rouletteState.bet} | Win: ${win}`;
   ui.startSimulation.disabled = false;
 }
 
