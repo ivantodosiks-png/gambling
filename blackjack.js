@@ -8,6 +8,26 @@ const BJ = (() => {
     subscription: null,
   };
 
+  // Helper function to get current user profile
+  const getProfile = async () => {
+    try {
+      const { data: { user } } = await sb.auth.getUser();
+      if (!user) return null;
+
+      const { data: profile, error } = await sb
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error) throw error;
+      return profile;
+    } catch (error) {
+      console.error('Error getting profile:', error);
+      return null;
+    }
+  };
+
   const CARD_SUITS = ['♠', '♥', '♣', '♦'];
   const CARD_VALUES = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 
