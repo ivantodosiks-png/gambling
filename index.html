@@ -1,225 +1,136 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gambling Simulator</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <div class="bg-glow"></div>
-  <header class="topbar glass">
-    <div class="brand">
-      <span class="logo">G</span>
-      <div>
-        <h1>Gambling Simulator</h1>
-        <p>Roulette + Mines</p>
-      </div>
-    </div>
-    <div class="balance-box">
-      Balance: <span id="balanceValue">5000</span> coins
-      <span class="player-id">ID: <span id="playerIdValue">-</span></span>
-    </div>
-    <nav class="mode-tabs">
-      <button id="btnHome" class="tab active">Home</button>
-      <button id="btnRoulette" class="tab">Ball / Roulette</button>
-      <button id="btnMines" class="tab">Mines</button>
-      <button id="btnPlinko" class="tab">Plinko</button>
-      <button id="btnAdmin" class="tab">Admin</button>
-    </nav>
-  </header>
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Supabase Auth</title>
+    <style>
+      :root { color-scheme: dark; }
+      body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: radial-gradient(1200px 600px at 20% 0%, rgba(51,209,143,0.18), transparent 60%), #0b1020; color: #e9edf7; }
+      .wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+      .card { width: min(520px, 100%); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 22px; }
+      .tabs { display: flex; gap: 10px; margin-bottom: 16px; }
+      .tab { flex: 1; cursor: pointer; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.04); color: #e9edf7; padding: 10px 12px; border-radius: 12px; font-weight: 700; }
+      .tab.active { border-color: rgba(51,209,143,0.6); box-shadow: 0 0 0 3px rgba(51,209,143,0.14) inset; }
+      label { display: block; margin: 10px 0 6px; color: rgba(233, 237, 247, 0.75); font-size: 13px; }
+      input { width: 100%; box-sizing: border-box; padding: 11px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.04); color: #e9edf7; }
+      input:focus { outline: none; border-color: rgba(125, 211, 252, 0.55); box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.14); }
+      button.primary { margin-top: 14px; width: 100%; cursor: pointer; border: 0; padding: 11px 14px; border-radius: 10px; background: #33d18f; color: #07110c; font-weight: 800; }
+      .msg { margin-top: 12px; min-height: 18px; font-size: 13px; color: rgba(233, 237, 247, 0.8); }
+      .err { color: #ff6b6b; }
+      .ok { color: #33d18f; }
+      .muted { color: rgba(233, 237, 247, 0.7); font-size: 13px; margin-top: 10px; }
+      code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 6px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <h2 style="margin:0 0 6px;">Регистрация / Логин</h2>
+        <div class="muted">Supabase Auth (email + password). Пароли вручную не храним.</div>
 
-  <main class="layout">
-    <section id="homeView" class="view active">
-      <div class="hero glass">
-        <h2>Choose a mode</h2>
-        <p>Pick a game and run a smooth casino-style simulation.</p>
-        <div class="hero-actions">
-          <button id="homeToRoulette" class="main-btn">Open Roulette</button>
-          <button id="homeToMines" class="main-btn alt">Open Mines</button>
-        </div>
-      </div>
-    </section>
-
-    <section id="rouletteView" class="view">
-      <div class="panel glass">
-        <h2>Ball / Roulette</h2>
-        <p class="muted">Enter your bet and spin. Win based on the multiplier you land on.</p>
-        <div class="roulette-wrap">
-          <div class="center-line"></div>
-          <div id="ballTrack" class="ball-track"></div>
-        </div>
-        <div class="roulette-controls">
-          <label for="rouletteBet">Bet amount:</label>
-          <input id="rouletteBet" type="number" min="10" step="10" value="100">
-          <button id="startSimulation" class="main-btn">Spin Roulette</button>
-        </div>
-        <p id="rouletteResult" class="result-text">Enter bet and click Spin</p>
-      </div>
-    </section>
-
-    <section id="minesView" class="view">
-      <div class="panel glass">
-        <h2>Mines</h2>
-        <p class="muted">Open cells. Hit a mine and the round is over.</p>
-        <div class="mines-controls">
-          <label for="gridSize">Grid size:</label>
-          <select id="gridSize">
-            <option value="2">2x2</option>
-            <option value="3">3x3</option>
-            <option value="4">4x4</option>
-            <option value="5" selected>5x5</option>
-            <option value="6">6x6</option>
-            <option value="7">7x7</option>
-            <option value="8">8x8</option>
-            <option value="9">9x9</option>
-            <option value="10">10x10</option>
-            <option value="11">11x11</option>
-            <option value="12">12x12</option>
-            <option value="13">13x13</option>
-            <option value="14">14x14</option>
-            <option value="15">15x15</option>
-          </select>
-          <label for="minesCount">Mines:</label>
-          <select id="minesCount"></select>
-          <label for="betAmount">Bet:</label>
-          <input id="betAmount" type="number" min="10" step="10" value="100">
-          <button id="startMines" class="main-btn">Start</button>
-          <button id="cashoutMines" class="main-btn alt">Cash Out</button>
-          <button id="resetMines" class="tab">Reset</button>
-        </div>
-        <div id="minesGrid" class="mines-grid"></div>
-        <p id="minesResult" class="result-text">Set options and press Start</p>
-      </div>
-    </section>
-
-    <section id="plinkoView" class="view">
-      <div class="panel glass">
-        <h2>Plinko</h2>
-        <p class="muted">Drop balls from the top. A ball can land on low or high multipliers.</p>
-        <div class="plinko-layout">
-          <div class="plinko-controls">
-            <label for="plinkoBet">Bet per ball:</label>
-            <input id="plinkoBet" type="number" min="10" step="10" value="100">
-            <label for="plinkoRows">Rows:</label>
-            <select id="plinkoRows">
-              <option value="8">8</option>
-              <option value="12">12</option>
-              <option value="16" selected>16</option>
-            </select>
-            <label for="plinkoRisk">Risk:</label>
-            <select id="plinkoRisk">
-              <option value="low">Low</option>
-              <option value="medium" selected>Medium</option>
-              <option value="high">High</option>
-            </select>
-            <label for="plinkoCount">Balls to drop:</label>
-            <input id="plinkoCount" type="number" min="1" max="100" step="1" value="1">
-            <label class="sound-toggle" for="plinkoSound">
-              <input id="plinkoSound" type="checkbox" checked>
-              Sound effects
-            </label>
-            <button id="plinkoDropOne" class="main-btn">Drop 1 Ball</button>
-            <button id="plinkoDropMany" class="main-btn alt">Drop Multiple</button>
-            <p id="plinkoStats" class="muted">Ready to drop.</p>
-          </div>
-          <div class="plinko-board-wrap">
-            <div id="plinkoBoard" class="plinko-board">
-              <canvas id="plinkoCanvas" class="plinko-canvas"></canvas>
-              <div id="plinkoMultipliers" class="plinko-multipliers"></div>
-              <div id="plinkoWinFx" class="plinko-win-fx"></div>
-            </div>
-          </div>
-        </div>
-        <p id="plinkoResult" class="result-text">Set bet and drop balls.</p>
-      </div>
-    </section>
-
-    <section id="adminView" class="view">
-      <div class="panel glass">
-        <h2>Admin Panel</h2>
-        <p class="muted">Manage user balances by generated visitor ID.</p>
-
-        <div id="adminLoginBox" class="admin-box">
-          <label for="adminName">Name:</label>
-          <input id="adminName" type="text" autocomplete="off" placeholder="Ivan">
-          <label for="adminPassword">Password:</label>
-          <input id="adminPassword" type="password" autocomplete="off" placeholder="Enter password">
-          <button id="adminLoginBtn" class="main-btn">Login</button>
-          <p id="adminAuthText" class="result-text">Login required.</p>
+        <div class="tabs" style="margin-top:16px;">
+          <button class="tab active" id="tabLogin" type="button">Login</button>
+          <button class="tab" id="tabRegister" type="button">Register</button>
         </div>
 
-        <div id="adminControls" class="admin-controls hidden">
-          <div class="admin-actions">
-            <button id="adminRefreshBtn" class="tab">Refresh List</button>
-            <button id="adminClearAllBtn" class="tab">Delete All Users</button>
-            <button id="adminLogoutBtn" class="tab">Logout</button>
-          </div>
-          <div id="adminUsersList" class="admin-users-list"></div>
-        </div>
-      </div>
-    </section>
-  </main>
+        <form id="form" autocomplete="off">
+          <label for="email">Email</label>
+          <input id="email" type="email" placeholder="you@example.com" required />
 
-  <div id="disclaimerOverlay" class="disclaimer-overlay">
-    <div class="disclaimer-card glass">
-      <h2>Disclaimer</h2>
-      <p>
-        This website is a demo/simulation for entertainment purposes only. It does not use real money, is not a real casino, and is not affiliated with any gambling operator.
-      </p>
-      <p class="muted">
-        Этот сайт является демо-симуляцией только для развлечения. Здесь не используются реальные деньги, это не настоящее казино, и сайт не связан ни с одним оператором азартных игр.
-      </p>
-      <button id="disclaimerAccept" class="main-btn">Accept</button>
-    </div>
-  </div>
+          <label for="password">Password</label>
+          <input id="password" type="password" placeholder="минимум 6 символов" required />
 
-  <div id="authOverlay" class="auth-overlay">
-    <div class="auth-card glass">
-      <div class="auth-container">
-        <div id="loginForm" class="auth-form active">
-          <h2>Login</h2>
-          <div class="form-group">
-            <label for="loginUsername">Username:</label>
-            <input id="loginUsername" type="text" placeholder="Enter your username" autocomplete="off">
-          </div>
-          <div class="form-group">
-            <label for="loginPassword">Password:</label>
-            <input id="loginPassword" type="password" placeholder="Enter your password" autocomplete="off">
-          </div>
-          <button id="loginBtn" class="main-btn full-width">Login</button>
-          <p class="toggle-text">No account? <button id="switchToRegister" class="text-btn">Register</button></p>
-          <p id="loginError" class="error-text"></p>
-        </div>
+          <button class="primary" id="submitBtn" type="submit">Login</button>
+          <div class="msg" id="msg"></div>
+        </form>
 
-        <div id="registerForm" class="auth-form">
-          <h2>Register</h2>
-          <div class="form-group">
-            <label for="regUsername">Username:</label>
-            <input id="regUsername" type="text" placeholder="Choose a username" autocomplete="off">
-          </div>
-          <div class="form-group">
-            <label for="regEmail">Email:</label>
-            <input id="regEmail" type="email" placeholder="Enter your email" autocomplete="off">
-          </div>
-          <div class="form-group">
-            <label for="regPassword">Password:</label>
-            <input id="regPassword" type="password" placeholder="Create a password" autocomplete="off">
-          </div>
-          <div class="form-group">
-            <label for="regPasswordConfirm">Confirm Password:</label>
-            <input id="regPasswordConfirm" type="password" placeholder="Confirm your password" autocomplete="off">
-          </div>
-          <button id="registerBtn" class="main-btn full-width">Register</button>
-          <p class="toggle-text">Already have an account? <button id="switchToLogin" class="text-btn">Login</button></p>
-          <p id="registerError" class="error-text"></p>
+        <div class="muted">
+          Настройка ключей: смотри `supabase.js` и `.env` (сервер отдаёт `/supabase-config.js`).
         </div>
       </div>
     </div>
-  </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
-  <script src="auth.js"></script>
-  <script src="script.js"></script>
-</body>
+    <!-- Этот файл генерится сервером (server.js) из .env -->
+    <script src="/supabase-config.js"></script>
+    <script type="module">
+      import { supabase } from "./supabase.js";
+
+      const tabLogin = document.getElementById("tabLogin");
+      const tabRegister = document.getElementById("tabRegister");
+      const form = document.getElementById("form");
+      const submitBtn = document.getElementById("submitBtn");
+      const msg = document.getElementById("msg");
+      const emailEl = document.getElementById("email");
+      const passEl = document.getElementById("password");
+
+      let mode = "login"; // "login" | "register"
+
+      function setMode(next) {
+        mode = next;
+        tabLogin.classList.toggle("active", mode === "login");
+        tabRegister.classList.toggle("active", mode === "register");
+        submitBtn.textContent = mode === "login" ? "Login" : "Register";
+        msg.textContent = "";
+        msg.className = "msg";
+      }
+
+      function setError(text) {
+        msg.textContent = text;
+        msg.className = "msg err";
+      }
+
+      function setOk(text) {
+        msg.textContent = text;
+        msg.className = "msg ok";
+      }
+
+      tabLogin.addEventListener("click", () => setMode("login"));
+      tabRegister.addEventListener("click", () => setMode("register"));
+
+      async function goIfAuthed() {
+        const { data } = await supabase.auth.getSession();
+        if (data.session) window.location.href = "./dashboard.html";
+      }
+
+      await goIfAuthed();
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const email = emailEl.value.trim();
+        const password = passEl.value;
+        if (!email || !password) return setError("Введите email и пароль");
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Подожди...";
+        msg.textContent = "";
+        msg.className = "msg";
+
+        try {
+          if (mode === "register") {
+            const { error } = await supabase.auth.signUp({ email, password });
+            if (error) throw error;
+            // Если включена email-confirmation, сессии не будет сразу — это нормально.
+            setOk("Готово. Если включено подтверждение email — проверь почту.");
+          } else {
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) throw error;
+            window.location.href = "./dashboard.html";
+          }
+        } catch (err) {
+          setError(err?.message || "Ошибка");
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = mode === "login" ? "Login" : "Register";
+        }
+      });
+
+      // Если логин произошёл в другой вкладке — отправляем на dashboard.
+      supabase.auth.onAuthStateChange((_event, session) => {
+        if (session) window.location.href = "./dashboard.html";
+      });
+    </script>
+  </body>
 </html>
+

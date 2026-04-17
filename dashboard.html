@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard</title>
+    <style>
+      :root { color-scheme: dark; }
+      body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: #0b1020; color: #e9edf7; }
+      .wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+      .card { width: min(520px, 100%); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 22px; }
+      .row { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+      button { cursor: pointer; border: 0; padding: 10px 14px; border-radius: 10px; background: #33d18f; color: #07110c; font-weight: 700; }
+      .muted { color: rgba(233, 237, 247, 0.72); font-size: 14px; }
+      code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 6px; }
+      a { color: #7dd3fc; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <div class="row">
+          <div>
+            <h2 style="margin:0 0 6px;">Ты вошёл</h2>
+            <div class="muted">Эта страница защищена: без сессии сюда не пускает.</div>
+          </div>
+          <button id="logoutBtn">Logout</button>
+        </div>
+        <hr style="border:0;border-top:1px solid rgba(255,255,255,0.12);margin:18px 0;">
+        <div class="muted">Email:</div>
+        <div id="email" style="margin:6px 0 14px; font-size: 16px;"></div>
+        <div class="muted">User ID:</div>
+        <div><code id="userId"></code></div>
+        <div style="margin-top:18px;" class="muted">
+          Вернуться на <a href="./index.html">страницу логина</a>.
+        </div>
+      </div>
+    </div>
+
+    <!-- Этот файл генерится сервером (server.js) из .env -->
+    <script src="/supabase-config.js"></script>
+    <script type="module">
+      import { supabase } from "./supabase.js";
+
+      async function requireAuth() {
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) {
+          window.location.href = "./index.html";
+          return null;
+        }
+        return data.session.user;
+      }
+
+      const user = await requireAuth();
+      if (!user) throw new Error("No session");
+
+      document.getElementById("email").textContent = user.email || "-";
+      document.getElementById("userId").textContent = user.id;
+
+      document.getElementById("logoutBtn").addEventListener("click", async () => {
+        await supabase.auth.signOut();
+        window.location.href = "./index.html";
+      });
+
+      // Если сессию удалили в другой вкладке — отправляем на логин.
+      supabase.auth.onAuthStateChange((_event, session) => {
+        if (!session) window.location.href = "./index.html";
+      });
+    </script>
+  </body>
+</html>
+
