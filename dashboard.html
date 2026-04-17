@@ -96,7 +96,7 @@
           if (!profile) {
             profileStatus.textContent = "Not found. Run the SQL from supabase_profiles.sql (profile trigger).";
           } else {
-            profileStatus.textContent = `OK: ${profile.email} | balance=${profile.balance} | ${profile.created_at}`;
+            profileStatus.textContent = `OK: ${profile.email} | username=${profile.username || "-"} | balance=${profile.balance} | ${profile.created_at}`;
             nickEl.value = profile.username || "";
           }
         } catch (e) {
