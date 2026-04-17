@@ -449,10 +449,14 @@ main > .wrap {
 .chipv.active { border-color: rgba(255, 209, 102, 0.55); box-shadow: 0 0 0 3px rgba(255,209,102,0.14) inset; }
 
 .roulette-stage-wrap {
-  display: grid;
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
   grid-template-rows: minmax(0, 1fr) minmax(200px, 1fr);
   min-height: 0;
+  justify-content: center;
+  align-items: center;
+  padding: 0 12px;
 }
 
 .roulette-wheel {
@@ -525,27 +529,27 @@ main > .wrap {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   display: grid;
   place-items: center;
   font-weight: 1000;
-  font-size: 16px;
-  letter-spacing: -0.2px;
+  font-size: 18px;
+  letter-spacing: -0.3px;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
-  /* Minimal: plain text on segments */
-  color: rgba(0,0,0,0.92);
-  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-  background: transparent;
+  color: rgba(0,0,0,0.95);
+  text-shadow: 0 3px 6px rgba(0,0,0,0.5);
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
   pointer-events: none;
   user-select: none;
 }
-.wheel-label.green { color: rgba(0,0,0,0.92); }
-.wheel-label.red { color: rgba(255,255,255,0.95); text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
-.wheel-label.black { color: rgba(255,255,255,0.94); text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+.wheel-label.green { color: rgba(0,0,0,0.95); text-shadow: 0 2px 4px rgba(255,255,255,0.2); }
+.wheel-label.red { color: rgba(255,255,255,0.98); text-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+.wheel-label.black { color: rgba(255,255,255,0.98); text-shadow: 0 2px 5px rgba(0,0,0,0.5); }
 
 .wheel-ball {
   position: absolute;
