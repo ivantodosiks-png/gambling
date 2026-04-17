@@ -119,12 +119,15 @@ header:after {
   background: linear-gradient(90deg, rgba(95,227,255,0), rgba(95,227,255,0.22), rgba(167,139,250,0.18), rgba(95,227,255,0));
 }
 header .wrap { position: relative; z-index: 1; }
+header .wrap { padding-top: 9px; padding-bottom: 9px; }
+.brand { min-width: 220px; }
 
 .wrap { max-width: 1140px; margin: 0 auto; padding: 12px; }
 .row { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
+header .row { flex-wrap: nowrap; }
 .brand { display: flex; align-items: center; gap: 12px; }
 .logo {
-  width: 38px; height: 38px; border-radius: 12px;
+  width: 34px; height: 34px; border-radius: 12px;
   display: grid; place-items: center;
   font-weight: 900; letter-spacing: 0.5px;
   background: linear-gradient(135deg, rgba(54,211,153,0.92), rgba(95,227,255,0.45), rgba(167,139,250,0.46));
@@ -135,7 +138,17 @@ header .wrap { position: relative; z-index: 1; }
 .muted { color: var(--muted); font-size: 13px; }
 code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.10); }
 
-.top-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap; /* prevent header height jumps when Admin button appears */
+  justify-content: flex-end;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.top-actions::-webkit-scrollbar { width: 0; height: 0; }
 .pill {
   padding: 7px 11px;
   border-radius: 999px;
@@ -148,7 +161,7 @@ code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 8px;
 
 .top-actions button { box-shadow: 0 12px 30px rgba(0,0,0,0.22); }
 button.ghost { background: rgba(255,255,255,0.03); }
-button.ghost:hover { background: rgba(255,255,255,0.05); }
+button.ghost:hover { background: rgba(255,255,255,0.05); box-shadow: 0 0 0 1px rgba(95,227,255,0.10), 0 0 18px rgba(95,227,255,0.08); }
 
 button {
   cursor: pointer;
@@ -169,7 +182,7 @@ button:active { transform: translateY(1px) scale(0.99); }
 
 .tabs { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
 .tab {
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-radius: 12px;
   border: 1px solid rgba(255,255,255,0.14);
   background: rgba(255,255,255,0.03);
@@ -191,7 +204,8 @@ main > .wrap {
 }
 
 .card {
-  background: linear-gradient(180deg, rgba(255,255,255,0.065), rgba(255,255,255,0.035));
+  /* Minimal dark glass (avoid "silver" look) */
+  background: linear-gradient(180deg, rgba(9, 12, 28, 0.62), rgba(7, 10, 22, 0.52));
   border: 1px solid var(--line);
   border-radius: 18px;
   padding: 14px;
@@ -416,7 +430,7 @@ main > .wrap {
 }
 
 .roulette-panel {
-  background: linear-gradient(180deg, rgba(255,255,255,0.060), rgba(255,255,255,0.028));
+  background: linear-gradient(180deg, rgba(9, 12, 28, 0.56), rgba(7, 10, 22, 0.42));
   border: 1px solid rgba(255,255,255,0.10);
   border-radius: 16px;
   padding: 12px;
@@ -437,20 +451,17 @@ main > .wrap {
 .roulette-stage-wrap {
   display: grid;
   gap: 14px;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   min-height: 0;
 }
 
 .roulette-wheel {
-  width: min(460px, 42vh, 92vw);
+  width: min(420px, 30vh, 92vw);
   aspect-ratio: 1 / 1;
   margin: 0 auto;
   position: relative;
   border-radius: 50%;
-  background:
-    radial-gradient(100% 100% at 32% 24%, rgba(255,255,255,0.12), rgba(255,255,255,0.02) 52%, rgba(255,255,255,0.00) 70%),
-    radial-gradient(120% 120% at 70% 78%, rgba(95,227,255,0.06), rgba(167,139,250,0.05) 40%, rgba(255,255,255,0.00) 72%),
-    rgba(255,255,255,0.03);
+  background: rgba(255,255,255,0.02);
   border: 1px solid rgba(255,255,255,0.14);
   box-shadow: 0 26px 60px rgba(0,0,0,0.55);
   overflow: hidden;
@@ -461,11 +472,9 @@ main > .wrap {
   inset: 0;
   pointer-events: none;
   z-index: 2;
-  background:
-    radial-gradient(70% 55% at 30% 22%, rgba(255,255,255,0.14), rgba(255,255,255,0.00) 64%),
-    radial-gradient(80% 70% at 70% 78%, rgba(0,0,0,0.55), rgba(0,0,0,0) 60%);
-  mix-blend-mode: overlay;
-  opacity: 0.85;
+  background: radial-gradient(70% 55% at 30% 22%, rgba(255,255,255,0.10), rgba(255,255,255,0.00) 66%);
+  mix-blend-mode: normal;
+  opacity: 0.65;
 }
 .roulette-wheel:after {
   content: "";
@@ -499,8 +508,7 @@ main > .wrap {
   box-shadow:
     inset 0 0 0 1px rgba(255,255,255,0.10),
     inset 0 22px 30px rgba(0,0,0,0.45),
-    0 18px 50px rgba(0,0,0,0.55),
-    var(--glowC);
+    0 18px 50px rgba(0,0,0,0.55);
 }
 .wheel-ring:before {
   content: "";
@@ -508,11 +516,9 @@ main > .wrap {
   inset: 0;
   border-radius: 50%;
   pointer-events: none;
-  background:
-    radial-gradient(85% 70% at 30% 22%, rgba(255,255,255,0.18), rgba(255,255,255,0) 65%),
-    radial-gradient(90% 90% at 65% 72%, rgba(95,227,255,0.09), rgba(167,139,250,0.08) 45%, rgba(255,255,255,0) 70%);
-  mix-blend-mode: overlay;
-  opacity: 0.9;
+  background: radial-gradient(85% 70% at 30% 22%, rgba(255,255,255,0.14), rgba(255,255,255,0) 66%);
+  mix-blend-mode: normal;
+  opacity: 0.7;
 }
 .wheel-labels { position: absolute; inset: 0; border-radius: 50%; }
 .wheel-label {
@@ -530,18 +536,16 @@ main > .wrap {
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
-  /* User asked for black text directly on the colors */
+  /* Minimal: plain text on segments */
   color: rgba(0,0,0,0.92);
-  text-shadow:
-    0 1px 0 rgba(255,255,255,0.20),
-    0 0 10px rgba(255,255,255,0.10);
+  text-shadow: 0 1px 0 rgba(255,255,255,0.18);
   background: transparent;
   pointer-events: none;
   user-select: none;
 }
 .wheel-label.green { color: rgba(0,0,0,0.92); }
 .wheel-label.red { color: rgba(0,0,0,0.92); }
-.wheel-label.black { color: rgba(0,0,0,0.92); }
+.wheel-label.black { color: rgba(255,255,255,0.94); text-shadow: 0 1px 0 rgba(0,0,0,0.55); }
 
 .wheel-ball {
   position: absolute;
@@ -584,21 +588,23 @@ main > .wrap {
 }
 
 .roulette-table-wrap {
-  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+  background: linear-gradient(180deg, rgba(9, 12, 28, 0.48), rgba(7, 10, 22, 0.30));
   border: 1px solid rgba(255,255,255,0.10);
   border-radius: 16px;
   padding: 12px;
-  overflow: hidden;
+  overflow: auto;
   min-height: 0;
   backdrop-filter: blur(16px);
 }
+.roulette-table-wrap { scrollbar-width: none; }
+.roulette-table-wrap::-webkit-scrollbar { width: 0; height: 0; }
 .roulette-table { display: grid; gap: 10px; }
 .rt-grid {
-  --z: clamp(46px, 6vh, 68px);
-  --c: clamp(34px, 5vh, 46px);
+  --z: clamp(40px, 5.3vh, 60px);
+  --c: clamp(28px, 4.3vh, 40px);
   display: grid;
   grid-template-columns: var(--z) repeat(12, var(--c));
-  gap: 6px;
+  gap: 5px;
 }
 .rt-top { grid-template-rows: repeat(3, var(--c)); }
 .rt-dozens, .rt-outs { grid-template-rows: var(--c); }
@@ -622,7 +628,7 @@ main > .wrap {
 .rbet:hover {
   background: rgba(255,255,255,0.06);
   transform: translateY(-1px) scale(1.03);
-  box-shadow: var(--glowC);
+  box-shadow: 0 0 0 1px rgba(95,227,255,0.10), 0 0 24px rgba(95,227,255,0.10);
 }
 .rbet.tall { grid-row: 1 / span 3; grid-column: 1; border-radius: 14px; font-size: 16px; }
 .rbet.red { background: rgba(255,92,122,0.14); border-color: rgba(255,92,122,0.26); }
@@ -802,7 +808,7 @@ body.win-flash .roulette-wheel { box-shadow: 0 26px 60px rgba(0,0,0,0.55), var(-
 @media (max-width: 520px) {
   .top-actions { gap: 8px; }
   .pill { font-size: 12px; }
-  .logo { width: 34px; height: 34px; border-radius: 11px; }
+  .logo { width: 32px; height: 32px; border-radius: 11px; }
   .select { min-width: 100%; }
   .pocket { width: 56px; height: 62px; font-size: 22px; border-radius: 15px; }
   .roulette-window { height: 104px; }
@@ -831,3 +837,6 @@ body.win-flash .roulette-wheel { box-shadow: 0 26px 60px rgba(0,0,0,0.55), var(-
 .kv { display: flex; gap: 10px; flex-wrap: wrap; }
 .kv .k { color: var(--muted); font-size: 12px; font-weight: 900; }
 .kv .v { font-weight: 1000; }
+.roulette-layout { overflow: hidden; }
+#rouletteView .card { height: 100%; min-height: 0; display: flex; flex-direction: column; }
+#rouletteView .roulette-layout { flex: 1 1 auto; min-height: 0; }

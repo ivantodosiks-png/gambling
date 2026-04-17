@@ -260,15 +260,17 @@
       const start = i * slot;
       const end = (i + 1) * slot;
       // Slightly lift "black" so dark text is still readable (user request).
+      // Classic roulette colors (more "true" red/black/green).
       const col =
         p.c === "red"
-          ? "rgba(255,77,109,0.98)"
+          ? "rgba(232, 59, 87, 0.98)"
           : p.c === "black"
-            ? "rgba(52,58,78,0.98)"
-            : "rgba(51,209,143,0.98)";
+            ? "rgba(12, 16, 32, 0.98)"
+            : "rgba(34, 197, 94, 0.98)";
       stops.push(`${col} ${start}deg ${end}deg`);
     }
-    ring.style.background = `conic-gradient(from -90deg, ${stops.join(",")})`;
+    // Align pocket 0 to the top (ball position).
+    ring.style.background = `conic-gradient(from 0deg, ${stops.join(",")})`;
 
     labels.innerHTML = "";
     for (let i = 0; i < POCKETS.length; i += 1) {
@@ -931,7 +933,7 @@ By clicking Accept, you confirm you understand this.
     qs("leaderboardBtn").addEventListener("click", () => (window.location.href = "./leaderboard.html"));
     qs("adminBtn").addEventListener("click", () => (window.location.href = "./admin.html"));
 
-    if (await isAdmin()) qs("adminBtn").style.display = "inline-block";
+    if (await isAdmin()) qs("adminBtn").style.visibility = "visible";
 
     // Tabs
     qs("tab_rouletteView").addEventListener("click", () => switchView("rouletteView"));
