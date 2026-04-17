@@ -119,9 +119,26 @@ let currentUserId = "";
 let usersStore = {};
 let isAdminLoggedIn = false;
 
-init();
+let persistBalanceTimer = 0;
+function persistBalanceDebounced() {
+  if (!window.gameApi || typeof window.gameApi.setBalance !== "function") return;
+  clearTimeout(persistBalanceTimer);
+  persistBalanceTimer = setTimeout(() => {
+    try {
+      window.gameApi.setBalance(balance);
+    } catch {
+      // ignore
+    }
+  }, 350);
+}
 
 function init() {
+  if (typeof window.__INITIAL_BALANCE__ === "number" && Number.isFinite(window.__INITIAL_BALANCE__)) {
+    balance = window.__INITIAL_BALANCE__;
+  }
+  if (typeof window.__USER_ID__ === "string" && window.__USER_ID__) {
+    ui.playerIdValue.textContent = window.__USER_ID__;
+  }
   bindEvents();
   showDisclaimer();
   buildRouletteTrack();
@@ -130,6 +147,9 @@ function init() {
   populateMinesCountOptions();
   resetMinesGame();
 }
+
+// Bootstrap is controlled by site.html (after Supabase session/profile is loaded).
+window.startGame = init;
 
 function bindEvents() {
   ui.btnHome.addEventListener("click", () => switchView("home"));
@@ -220,7 +240,6 @@ function startSimulation() {
   }
   
   balance -= bet;
-  authManager.setBalance(balance);
   refreshBalance();
   
   buildRouletteTrack();
@@ -453,8 +472,8 @@ function setCellsDisabled(disabled) {
 }
 
 function refreshBalance() {
-  balance = authManager.getBalance();
   ui.balanceValue.textContent = String(balance);
+  persistBalanceDebounced();
 }
 
 function weightedPick(list) {

@@ -1,47 +1,170 @@
 <!doctype html>
-<html lang="ru">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Site</title>
-    <style>
-      :root { color-scheme: dark; }
-      body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: #0b1020; color: #e9edf7; }
-      header { position: sticky; top: 0; background: rgba(11,16,32,0.9); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.12); }
-      .wrap { max-width: 980px; margin: 0 auto; padding: 18px 16px; }
-      .row { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
-      .muted { color: rgba(233, 237, 247, 0.7); font-size: 13px; }
-      button { cursor: pointer; border: 0; padding: 10px 12px; border-radius: 10px; background: #33d18f; color: #07110c; font-weight: 800; }
-      button.secondary { background: rgba(255,255,255,0.08); color: #e9edf7; border: 1px solid rgba(255,255,255,0.14); }
-      code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 6px; }
-      a { color: #7dd3fc; }
-      .card { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 18px; }
-    </style>
+    <title>Casino Simulator</title>
+    <link rel="stylesheet" href="./site.css" />
   </head>
   <body>
     <header>
       <div class="wrap">
         <div class="row">
-          <div>
-            <div style="font-weight:900; font-size:18px;">Site</div>
-            <div class="muted">ID: <code id="userId">-</code></div>
+          <div class="brand">
+            <div class="logo">G</div>
+            <div>
+              <div style="font-weight:1000; font-size:16px; line-height:1;">Casino Simulator</div>
+              <div class="muted">Roulette + Mines (virtual coins only)</div>
+            </div>
           </div>
-          <div class="row" style="justify-content:flex-end;">
-            <button id="toDashboardBtn" class="secondary" type="button">Profile</button>
-            <button id="toAdminBtn" class="secondary" type="button" style="display:none;">Admin</button>
+          <div class="top-actions">
+            <div class="pill">Balance: <span id="balanceValue">0</span></div>
+            <div class="pill">ID: <code id="userIdValue">-</code></div>
+            <button id="profileBtn" class="secondary" type="button">Profile</button>
+            <button id="adminBtn" class="secondary" type="button" style="display:none;">Admin</button>
             <button id="logoutBtn" type="button">Logout</button>
           </div>
+        </div>
+
+        <div class="tabs">
+          <button id="tab_rouletteView" class="tab active" type="button">Roulette</button>
+          <button id="tab_minesView" class="tab" type="button">Mines</button>
         </div>
       </div>
     </header>
 
-    <main class="wrap">
-      <div class="card">
-        <h2 style="margin:0 0 8px;">Welcome</h2>
-        <div class="muted" style="margin-bottom:12px;">This is the main site page after login. Put your content/game here.</div>
-        <div class="muted">Email: <span id="email">-</span></div>
-        <div class="muted" style="margin-top:8px;">Balance: <span id="balance">-</span></div>
-        <div class="muted" id="balanceHint" style="margin-top:8px;"></div>
+    <main>
+      <div class="wrap">
+        <div id="globalMsg" class="msg"></div>
+        <div class="grid">
+          <div>
+            <section id="rouletteView" class="view active">
+              <div class="card">
+              <h2>Roulette</h2>
+              <div class="muted">Bet on a color or a number. 0 is green.</div>
+
+              <div class="roulette-stage" style="margin-top:12px;">
+                <div class="roulette-window" id="rouletteWindow">
+                  <div class="marker"></div>
+                  <div class="roulette-track" id="rouletteTrack"></div>
+                </div>
+              </div>
+
+              <div class="bet-grid">
+                <div>
+                  <h3 style="margin:10px 0 8px;">Color bet</h3>
+                  <div class="bet-colors">
+                    <button type="button" data-r-color="red">Red (2x)</button>
+                    <button type="button" data-r-color="black">Black (2x)</button>
+                    <button type="button" data-r-color="green">Green (14x)</button>
+                  </div>
+                </div>
+                <div>
+                  <h3 style="margin:10px 0 8px;">Number bet</h3>
+                  <div class="bet-numbers" id="betNumbers">
+                    <!-- Filled by HTML for simplicity -->
+                    <button type="button" class="num-btn green" data-r-num="0">0</button>
+                    <button type="button" class="num-btn red" data-r-num="1">1</button>
+                    <button type="button" class="num-btn black" data-r-num="2">2</button>
+                    <button type="button" class="num-btn red" data-r-num="3">3</button>
+                    <button type="button" class="num-btn black" data-r-num="4">4</button>
+                    <button type="button" class="num-btn red" data-r-num="5">5</button>
+                    <button type="button" class="num-btn black" data-r-num="6">6</button>
+                    <button type="button" class="num-btn red" data-r-num="7">7</button>
+                    <button type="button" class="num-btn black" data-r-num="8">8</button>
+                    <button type="button" class="num-btn red" data-r-num="9">9</button>
+                    <button type="button" class="num-btn black" data-r-num="10">10</button>
+                    <button type="button" class="num-btn black" data-r-num="11">11</button>
+                    <button type="button" class="num-btn red" data-r-num="12">12</button>
+                    <button type="button" class="num-btn black" data-r-num="13">13</button>
+                    <button type="button" class="num-btn red" data-r-num="14">14</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card" style="margin-top:14px;">
+                <div class="ctrl-row">
+                  <div class="ctrl">
+                    <div class="num" id="rouletteBetType">Color: red</div>
+                  </div>
+                  <div class="ctrl">
+                    <label>Bet</label>
+                    <div class="stepper" aria-label="Bet amount">
+                      <button id="betMinus" type="button">-</button>
+                      <div class="value" id="betValue">100</div>
+                      <button id="betPlus" type="button">+</button>
+                    </div>
+                    <button id="rouletteSpinBtn" type="button">Spin</button>
+                  </div>
+                </div>
+                <div class="msg" id="rouletteMsg"></div>
+                <div class="muted" style="margin-top:8px;">Last rolls</div>
+                <div class="history" id="rouletteHistory"></div>
+              </div>
+              </div>
+            </section>
+
+            <section id="minesView" class="view">
+              <div class="card">
+                <h2>Mines</h2>
+                <div class="muted">Open tiles, avoid mines, cash out anytime.</div>
+
+                <div class="mines-top" style="margin-top:12px;">
+                  <div class="ctrl">
+                    <label>Grid</label>
+                    <div class="stepper">
+                      <button id="minesSizeMinus" type="button">5x5</button>
+                      <div class="value" id="minesSizeValue">5x5</div>
+                      <button id="minesSizePlus" type="button">6x6</button>
+                    </div>
+                  </div>
+                  <div class="ctrl">
+                    <label>Mines</label>
+                    <div class="stepper">
+                      <button id="minesMinesMinus" type="button">-</button>
+                      <div class="value" id="minesMinesValue">4</div>
+                      <button id="minesMinesPlus" type="button">+</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mines-top" style="margin-top:10px;">
+                  <div class="ctrl">
+                    <label>Bet</label>
+                    <div class="stepper">
+                      <button id="minesBetMinus" type="button">-</button>
+                      <div class="value" id="minesBetValue">100</div>
+                      <button id="minesBetPlus" type="button">+</button>
+                    </div>
+                  </div>
+                  <div class="ctrl">
+                    <button id="minesStartBtn" type="button">Start</button>
+                    <button id="minesCashoutBtn" class="secondary" type="button" disabled>Cash out</button>
+                    <button id="minesResetBtn" class="ghost" type="button">Reset</button>
+                  </div>
+                </div>
+
+                <div class="kv" style="margin-top:12px;">
+                  <div><span class="k">Opened:</span> <span class="v" id="minesOpenedValue">0</span></div>
+                  <div><span class="k">Multiplier:</span> <span class="v" id="minesMultValue">1.00x</span></div>
+                </div>
+
+                <div class="msg" id="minesMsg"></div>
+                <div class="mines-grid" id="minesGrid"></div>
+              </div>
+            </section>
+          </div>
+
+          <aside>
+            <div class="card">
+              <h3 style="margin:0 0 8px;">Notes</h3>
+              <div class="muted">
+                Balance is stored in Supabase <code>profiles.balance</code>. If you didn't add it yet, run:
+                <div style="margin-top:8px;"><code>ALTER TABLE public.profiles ADD COLUMN balance bigint NOT NULL DEFAULT 5000;</code></div>
+              </div>
+            </div>
+          </aside>
+        </div>
       </div>
     </main>
 
@@ -49,68 +172,6 @@
     <script src="./supabase-config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
     <script src="./supabase.js"></script>
-    <script>
-      (async () => {
-        const sb = window.sb;
-        if (!sb) {
-          window.location.href = "./index.html";
-          return;
-        }
-
-        const { data } = await sb.auth.getSession();
-        if (!data.session) {
-          window.location.href = "./index.html";
-          return;
-        }
-
-        const user = data.session.user;
-        document.getElementById("userId").textContent = user.id;
-        document.getElementById("email").textContent = user.email || "-";
-
-        // Пытаемся показать balance из profiles (если колонка есть).
-        const balanceEl = document.getElementById("balance");
-        const hintEl = document.getElementById("balanceHint");
-        try {
-          const { data: profile, error } = await sb
-            .from("profiles")
-            .select("balance")
-            .eq("id", user.id)
-            .maybeSingle();
-
-          if (error) throw error;
-          balanceEl.textContent = profile?.balance ?? "-";
-        } catch (e) {
-          const msg = e?.message || "";
-          if (msg.includes("column") && msg.includes("balance") && msg.includes("does not exist")) {
-            hintEl.textContent =
-              "Missing balance column. Run SQL: ALTER TABLE public.profiles ADD COLUMN balance bigint NOT NULL DEFAULT 5000;";
-          } else {
-            hintEl.textContent = msg ? `Balance error: ${msg}` : "Balance error";
-          }
-          balanceEl.textContent = "-";
-        }
-
-        // Показываем кнопку Админка, если ты админ.
-        try {
-          const { data: isAdmin } = await sb.rpc("is_admin");
-          if (isAdmin) document.getElementById("toAdminBtn").style.display = "inline-block";
-        } catch (_) {}
-
-        document.getElementById("toDashboardBtn").addEventListener("click", () => {
-          window.location.href = "./dashboard.html";
-        });
-        document.getElementById("toAdminBtn").addEventListener("click", () => {
-          window.location.href = "./admin.html";
-        });
-        document.getElementById("logoutBtn").addEventListener("click", async () => {
-          await sb.auth.signOut();
-          window.location.href = "./index.html";
-        });
-
-        sb.auth.onAuthStateChange((_event, session) => {
-          if (!session) window.location.href = "./index.html";
-        });
-      })();
-    </script>
+    <script src="./site.js"></script>
   </body>
 </html>

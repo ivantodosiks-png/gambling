@@ -48,14 +48,16 @@ for select
 to authenticated
 using (id = auth.uid() or public.is_admin());
 
--- Обновлять profiles может только админ (например менять balance)
-drop policy if exists "profiles_update_admin" on public.profiles;
-create policy "profiles_update_admin"
+-- Обновлять profiles может:
+-- - сам пользователь (свой профиль)
+-- - админ (любой профиль)
+drop policy if exists "profiles_update_own_or_admin" on public.profiles;
+create policy "profiles_update_own_or_admin"
 on public.profiles
 for update
 to authenticated
-using (public.is_admin())
-with check (public.is_admin());
+using (id = auth.uid() or public.is_admin())
+with check (id = auth.uid() or public.is_admin());
 
 -- 5) Триггер: автосоздание профиля после регистрации
 create or replace function public.handle_new_user()
