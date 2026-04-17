@@ -1,4 +1,4 @@
-const { getPool, verifyPassword, readJsonBody, sendJson } = require("./_utils");
+const { getPool, verifyPassword, readJsonBody, sendJson, exposeErrorDetails, toErrorDetails } = require("./_utils");
 
 function validateLogin({ username, password }) {
   const u = String(username || "").trim();
@@ -16,7 +16,16 @@ module.exports = async (req, res) => {
   const v = validateLogin(body || {});
   if (!v.ok) return sendJson(res, 400, { ok: false, error: v.error });
 
-  const pool = getPool();
+  let pool;
+  try {
+    pool = getPool();
+  } catch (e) {
+    return sendJson(
+      res,
+      500,
+      exposeErrorDetails() ? { ok: false, error: "Server error", details: toErrorDetails(e) } : { ok: false, error: "Server error" },
+    );
+  }
   try {
     const [rows] = await pool.execute(
       "SELECT id, username, email, password, created_at FROM users WHERE username = ? LIMIT 1",
@@ -30,8 +39,11 @@ module.exports = async (req, res) => {
 
     const user = { id: userRow.id, username: userRow.username, email: userRow.email, created_at: userRow.created_at };
     return sendJson(res, 200, { ok: true, user });
-  } catch (_e) {
-    return sendJson(res, 500, { ok: false, error: "Server error" });
+  } catch (e) {
+    return sendJson(
+      res,
+      500,
+      exposeErrorDetails() ? { ok: false, error: "Server error", details: toErrorDetails(e) } : { ok: false, error: "Server error" },
+    );
   }
 };
-

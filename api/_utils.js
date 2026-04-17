@@ -27,6 +27,7 @@ function getPool() {
     user,
     password,
     database,
+    connectTimeout: 10_000,
     waitForConnections: true,
     connectionLimit: 5,
     queueLimit: 0,
@@ -83,6 +84,18 @@ function sendJson(res, statusCode, obj) {
   res.end(JSON.stringify(obj));
 }
 
+function exposeErrorDetails() {
+  return String(process.env.DEBUG_ERRORS || "") === "1";
+}
+
+function toErrorDetails(e) {
+  if (!e || typeof e !== "object") return { message: String(e || "") };
+  return {
+    code: e.code,
+    message: e.message,
+  };
+}
+
 module.exports = {
   getPool,
   hashPassword,
@@ -90,5 +103,6 @@ module.exports = {
   isValidEmail,
   readJsonBody,
   sendJson,
+  exposeErrorDetails,
+  toErrorDetails,
 };
-

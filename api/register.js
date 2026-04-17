@@ -1,4 +1,4 @@
-const { getPool, hashPassword, isValidEmail, readJsonBody, sendJson } = require("./_utils");
+const { getPool, hashPassword, isValidEmail, readJsonBody, sendJson, exposeErrorDetails, toErrorDetails } = require("./_utils");
 
 function validateRegister({ username, email, password }) {
   const u = String(username || "").trim();
@@ -20,7 +20,16 @@ module.exports = async (req, res) => {
   const v = validateRegister(body || {});
   if (!v.ok) return sendJson(res, 400, { ok: false, error: v.error });
 
-  const pool = getPool();
+  let pool;
+  try {
+    pool = getPool();
+  } catch (e) {
+    return sendJson(
+      res,
+      500,
+      exposeErrorDetails() ? { ok: false, error: "Server error", details: toErrorDetails(e) } : { ok: false, error: "Server error" },
+    );
+  }
   try {
     const passwordHash = hashPassword(v.password);
     const [result] = await pool.execute(
@@ -37,7 +46,10 @@ module.exports = async (req, res) => {
     return sendJson(res, 200, { ok: true, user });
   } catch (e) {
     if (e && e.code === "ER_DUP_ENTRY") return sendJson(res, 409, { ok: false, error: "Username or email already exists" });
-    return sendJson(res, 500, { ok: false, error: "Server error" });
+    return sendJson(
+      res,
+      500,
+      exposeErrorDetails() ? { ok: false, error: "Server error", details: toErrorDetails(e) } : { ok: false, error: "Server error" },
+    );
   }
 };
-
