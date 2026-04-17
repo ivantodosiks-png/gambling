@@ -578,38 +578,13 @@
     }
 
     const profit = winTotal - totalBet;
-    const resultText = winTotal > 0 ? '🎉 WIN!' : '💔 LOSE!';
-    const resultAmount = winTotal > 0 ? `+${fmt(profit)}` : `-${fmt(totalBet)}`;
-    const resultInfo = `${rolled.n} ${rolled.c.toUpperCase()}`;
-    
     if (winTotal > 0) {
       setBalance(STATE.balance + winTotal);
-      setMsg(msgEl, `${resultText} ${resultAmount} | ${resultInfo}`, "ok");
+      setMsg(msgEl, `WIN +${fmt(profit)} | Rolled ${rolled.n} ${rolled.c.toUpperCase()}`, "ok");
       document.body.classList.add("win-flash");
       setTimeout(() => document.body.classList.remove("win-flash"), 900);
     } else {
-      setMsg(msgEl, `${resultText} ${resultAmount} | ${resultInfo}`, "err");
-    }
-
-    // Show large result overlay on wheel for 4 seconds
-    const wheel = document.querySelector(".roulette-wheel");
-    if (wheel) {
-      const overlay = document.createElement("div");
-      const textColor = rolled.c === 'red' ? 'white' : rolled.c === 'black' ? 'white' : 'black';
-      overlay.style.cssText = `
-        position: absolute; inset: 0; display: grid; place-items: center;
-        text-align: center; z-index: 10; pointer-events: none;
-        animation: resultFadeInOut 4s ease-in-out forwards;
-      `;
-      overlay.innerHTML = `
-        <div style="font-size: 28px; font-weight: 1000; color: ${textColor}; text-shadow: 0 4px 16px rgba(0,0,0,0.7); line-height: 1.3;">
-          <div>${winTotal > 0 ? '✓ WIN!' : '✗ LOSE'}</div>
-          <div style="font-size: 48px; margin: 8px 0;">${resultAmount}</div>
-          <div style="font-size: 20px; opacity: 0.9;">Hit ${resultInfo}</div>
-        </div>
-      `;
-      wheel.appendChild(overlay);
-      setTimeout(() => overlay.remove(), 4000);
+      setMsg(msgEl, `LOSE -${fmt(totalBet)} | Rolled ${rolled.n} ${rolled.c.toUpperCase()}`, "err");
     }
 
     STATE.roulette.history.unshift(rolled);

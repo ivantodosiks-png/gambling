@@ -450,14 +450,10 @@ main > .wrap {
 .chipv.active { border-color: rgba(255, 209, 102, 0.55); box-shadow: 0 0 0 3px rgba(255,209,102,0.14) inset; }
 
 .roulette-stage-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  display: grid;
+  gap: 12px;
   grid-template-rows: minmax(0, 1fr) minmax(200px, 1fr);
   min-height: 0;
-  justify-content: center;
-  align-items: center;
-  padding: 0 12px;
 }
 
 .roulette-wheel {
@@ -839,13 +835,6 @@ body.win-flash .roulette-wheel { box-shadow: 0 26px 60px rgba(0,0,0,0.55), var(-
 
 .mine-pop { animation: pop 220ms ease; }
 @keyframes pop { from { transform: scale(0.94); } to { transform: scale(1); } }
-
-@keyframes resultFadeInOut {
-  0% { opacity: 0; transform: scale(0.8) translateY(20px); }
-  10% { opacity: 1; transform: scale(1) translateY(0); }
-  90% { opacity: 1; transform: scale(1) translateY(0); }
-  100% { opacity: 0; transform: scale(0.8) translateY(-20px); }
-}
 
 .kv { display: flex; gap: 10px; flex-wrap: wrap; }
 .kv .k { color: var(--muted); font-size: 12px; font-weight: 900; }
