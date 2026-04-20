@@ -6,6 +6,9 @@ const BJ = (() => {
     rooms: [],
     gameInProgress: false,
     subscription: null,
+    playersSubscription: null,
+    roomPollTimer: 0,
+    currentRoomStatus: null,
   };
 
   // Helper function to get current user profile
@@ -211,6 +214,34 @@ const BJ = (() => {
     }
   };
 
+  const setWaitingRoomId = (roomId) => {
+    const el = document.getElementById('bjWaitingRoomId');
+    if (el) el.textContent = roomId || '-';
+  };
+
+  const copyRoomId = async () => {
+    const id = state.currentRoom || '';
+    if (!id) return;
+    try {
+      await navigator.clipboard.writeText(id);
+      showMessage('bjWaitingMsg', 'Room ID copied', 'success');
+    } catch {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = id;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+        showMessage('bjWaitingMsg', 'Room ID copied', 'success');
+      } catch {
+        showMessage('bjWaitingMsg', 'Copy failed', 'error');
+      }
+    }
+  };
+
   const formatCardDisplay = (card) => {
     const display = document.createElement('div');
     display.className = `bj-card-item ${['♥', '♦'].includes(card.suit) ? 'red' : 'black'}`;
@@ -250,18 +281,19 @@ const BJ = (() => {
       const seat = document.createElement('div');
       seat.className = `bj-player-seat ${player.status === 'active' ? 'active' : ''}`;
       
-      const score = calculateHandScore(player.hand || []);
+      const parsedHand = typeof player.hand === 'string' ? JSON.parse(player.hand || '[]') : (player.hand || []);
+      const score = calculateHandScore(parsedHand);
       const handDisplay = document.createElement('div');
       handDisplay.className = 'bj-player-hand';
       
-      if (player.hand && player.hand.length > 0) {
-        for (let card of player.hand) {
+      if (Array.isArray(parsedHand) && parsedHand.length > 0) {
+        for (let card of parsedHand) {
           handDisplay.appendChild(formatCardDisplay(card));
         }
       }
       
       seat.innerHTML = `
-        <div class="bj-player-name">${player.username || 'Player'}</div>
+        <div class="bj-player-name">${player.profiles?.username || player.username || 'Player'}</div>
       `;
       seat.appendChild(handDisplay);
       seat.innerHTML += `
@@ -353,10 +385,12 @@ const BJ = (() => {
 
       state.currentRoom = roomId;
       state.currentPlayer = profile.id;
+      state.currentRoomStatus = 'waiting';
 
       showMessage('bjLobbyMsg', '✅ Комната создана! Ожидаем других игроков...', 'success');
       showLobby(false);
       showWaitingRoom(true);
+      setWaitingRoomId(roomId);
       renderWaitingRoom(roomId);
 
       subscribeToRoom(roomId);
@@ -402,7 +436,7 @@ const BJ = (() => {
           room_id: roomId,
           player_id: profile.id,
           bet: 0,
-          hand: [],
+          hand: JSON.stringify([]),
           score: 0,
           status: 'waiting',
           result: null,
@@ -421,10 +455,12 @@ const BJ = (() => {
 
       state.currentRoom = roomId;
       state.currentPlayer = profile.id;
+      state.currentRoomStatus = 'waiting';
 
       showMessage('bjLobbyMsg', 'Joined room!', 'success');
       showLobby(false);
       showWaitingRoom(true);
+      setWaitingRoomId(roomId);
       renderWaitingRoom(roomId);
 
       subscribeToRoom(roomId);
@@ -476,36 +512,118 @@ const BJ = (() => {
 
       state.currentRoom = null;
       state.currentPlayer = null;
+      state.currentRoomStatus = null;
+      setWaitingRoomId('-');
       showLobby(true);
       showWaitingRoom(false);
       showGameTable(false);
+
+      if (state.subscription) {
+        state.subscription.unsubscribe();
+        state.subscription = null;
+      }
+      if (state.playersSubscription) {
+        state.playersSubscription.unsubscribe();
+        state.playersSubscription = null;
+      }
+      clearInterval(state.roomPollTimer);
+      state.roomPollTimer = 0;
     } catch (error) {
       console.error('Error leaving room:', error);
     }
   };
 
-  const subscribeToRoom = (roomId) => {
-    if (state.subscription) {
-      state.subscription.unsubscribe();
+  const handleRoomUpdate = async (room) => {
+    if (!room) return;
+    state.currentRoomStatus = room.status || null;
+
+    // Always keep short ID visible on table header.
+    const roomIdEl = document.getElementById('bjCurrentRoomId');
+    if (roomIdEl) roomIdEl.textContent = String(room.id || '').slice(0, 8);
+
+    if (room.status === 'waiting') {
+      showGameTable(false);
+      showWaitingRoom(true);
+      setWaitingRoomId(room.id);
+      await renderWaitingRoom(room.id);
+      return;
     }
 
+    // betting: show table with bet input for everyone
+    if (room.status === 'betting') {
+      showWaitingRoom(false);
+      showGameTable(true);
+      await startGameView(room);
+      return;
+    }
+
+    // playing/results: show table and render actual state
+    if (room.status === 'playing' || room.status === 'results') {
+      showWaitingRoom(false);
+      showGameTable(true);
+      document.getElementById('bjBettingPhase').style.display = 'none';
+      document.getElementById('bjControls').style.display = 'flex';
+      await renderGameState(room.id);
+      return;
+    }
+  };
+
+  const syncRoomOnce = async (roomId) => {
+    try {
+      const { data: room, error } = await sb.from('blackjack_rooms').select().eq('id', roomId).maybeSingle();
+      if (error) throw error;
+      if (!room) return;
+      await handleRoomUpdate(room);
+
+      // Also refresh players list/state depending on room status.
+      if (room.status === 'waiting') await renderWaitingRoom(roomId);
+      if (room.status === 'betting' || room.status === 'playing' || room.status === 'results') await renderGameState(roomId);
+    } catch (e) {
+      console.warn('syncRoomOnce error:', e?.message || e);
+    }
+  };
+
+  const subscribeToRoom = (roomId) => {
+    // Cleanup previous subs/timers
+    if (state.subscription) {
+      state.subscription.unsubscribe();
+      state.subscription = null;
+    }
+    if (state.playersSubscription) {
+      state.playersSubscription.unsubscribe();
+      state.playersSubscription = null;
+    }
+    clearInterval(state.roomPollTimer);
+    state.roomPollTimer = 0;
+
+    // Realtime (if enabled)
     state.subscription = sb
-      .channel(`room:${roomId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'blackjack_rooms', filter: `id=eq.${roomId}` },
-        (payload) => {
-          if (payload.new) {
-            renderWaitingRoom(roomId);
-            if (payload.new.status === 'playing') {
-              showWaitingRoom(false);
-              showGameTable(true);
-              startGameView(payload.new);
-            }
-          }
-        }
-      )
+      .channel(`bj_room:${roomId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'blackjack_rooms', filter: `id=eq.${roomId}` }, (payload) => {
+        if (payload?.new) handleRoomUpdate(payload.new);
+      })
       .subscribe();
+
+    state.playersSubscription = sb
+      .channel(`bj_players:${roomId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'blackjack_players', filter: `room_id=eq.${roomId}` }, async () => {
+        // Update the visible view based on current room status
+        if (state.currentRoomStatus === 'waiting') await renderWaitingRoom(roomId);
+        if (state.currentRoomStatus === 'betting') {
+          const { data: room } = await sb.from('blackjack_rooms').select().eq('id', roomId).maybeSingle();
+          if (room) await startGameView(room);
+        }
+        if (state.currentRoomStatus === 'playing' || state.currentRoomStatus === 'results') await renderGameState(roomId);
+      })
+      .subscribe();
+
+    // Poll fallback (works even if Realtime выключен)
+    state.roomPollTimer = setInterval(() => {
+      if (state.currentRoom === roomId) syncRoomOnce(roomId);
+    }, 1500);
+
+    // Initial sync
+    syncRoomOnce(roomId);
   };
 
   const renderWaitingRoom = async (roomId) => {
@@ -589,6 +707,13 @@ const BJ = (() => {
         return;
       }
 
+      const { data: players } = await sb.from('blackjack_players').select('status').eq('room_id', roomId);
+      const everyoneReady = (players || []).every((p) => p.status === 'ready');
+      if (!everyoneReady) {
+        showMessage('bjWaitingMsg', 'All players must press Ready', 'error');
+        return;
+      }
+
       await sb
         .from('blackjack_rooms')
         .update({ status: 'betting', round_number: 1 })
@@ -629,6 +754,8 @@ const BJ = (() => {
       document.getElementById('bjBettingPhase').style.display = 'block';
       document.getElementById('bjControls').style.display = 'none';
       document.getElementById('bjGameMsg').innerHTML = '';
+      const betInput = document.getElementById('bjBetInput');
+      if (betInput) betInput.min = String(room.min_bet || 10);
 
       renderPlayersArea({ players: players || [] });
       renderDealerHand([]);
@@ -1053,6 +1180,7 @@ const BJ = (() => {
     document.getElementById('bjLeaveTableBtn')?.addEventListener('click', leaveRoom);
     document.getElementById('bjWaitingLeaveBtn')?.addEventListener('click', leaveRoom);
     document.getElementById('bjReadyBtn')?.addEventListener('click', markReady);
+    document.getElementById('bjCopyRoomIdBtn')?.addEventListener('click', copyRoomId);
     document.getElementById('bjConfirmBetBtn')?.addEventListener('click', confirmBet);
     document.getElementById('bjHitBtn')?.addEventListener('click', hit);
     document.getElementById('bjStandBtn')?.addEventListener('click', stand);

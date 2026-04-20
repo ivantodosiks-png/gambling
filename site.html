@@ -269,6 +269,11 @@
               <div id="bjWaitingRoom" class="bj-waiting-room" style="display:none;">
                 <h3>Waiting Room</h3>
                 <div class="bj-waiting-content">
+                  <div class="bj-room-share" style="display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap;">
+                    <div class="muted" style="font-weight:700;">Room ID:</div>
+                    <code id="bjWaitingRoomId">-</code>
+                    <button id="bjCopyRoomIdBtn" class="secondary" type="button">Copy</button>
+                  </div>
                   <div id="bjWaitingPlayersList"></div>
                   <div class="bj-waiting-actions">
                     <button id="bjStartGameBtn" class="primary-wide" type="button" style="display:none;">Start Game</button>
