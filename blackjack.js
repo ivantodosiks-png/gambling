@@ -113,6 +113,36 @@ const BJ = (() => {
   const CARD_SUITS = ['♠', '♥', '♣', '♦'];
   const CARD_VALUES = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 
+  const fetchPlayersWithProfiles = async (roomId) => {
+    // Preferred: join profiles if a FK relationship exists.
+    const joined = await sb
+      .from('blackjack_players')
+      .select('*, profiles ( username )')
+      .eq('room_id', roomId);
+
+    if (!joined?.error && Array.isArray(joined?.data)) return joined.data;
+
+    // Fallback: fetch players, then fetch profiles separately and stitch.
+    const base = await sb.from('blackjack_players').select('*').eq('room_id', roomId);
+    if (base?.error) throw base.error;
+
+    const players = Array.isArray(base?.data) ? base.data : [];
+    const ids = [...new Set(players.map((p) => p.player_id).filter(Boolean))];
+
+    let byId = {};
+    if (ids.length) {
+      const profRes = await sb.from('profiles').select('id, username').in('id', ids);
+      if (!profRes?.error && Array.isArray(profRes?.data)) {
+        byId = profRes.data.reduce((acc, p) => {
+          acc[p.id] = p;
+          return acc;
+        }, {});
+      }
+    }
+
+    return players.map((p) => ({ ...p, profiles: byId[p.player_id] || null }));
+  };
+
   // ============ DECK FUNCTIONS ============
   const createDeck = () => {
     const deck = [];
@@ -628,12 +658,7 @@ const BJ = (() => {
 
   const renderWaitingRoom = async (roomId) => {
     try {
-      const { data: players, error } = await sb
-        .from('blackjack_players')
-        .select('*, profiles!player_id(username)')
-        .eq('room_id', roomId);
-
-      if (error) throw error;
+      const players = await fetchPlayersWithProfiles(roomId);
 
       const list = document.getElementById('bjWaitingPlayersList');
       list.innerHTML = '';
@@ -740,12 +765,7 @@ const BJ = (() => {
 
   const startGameView = async (room) => {
     try {
-      const { data: players, error } = await sb
-        .from('blackjack_players')
-        .select('*, profiles!player_id(username)')
-        .eq('room_id', room.id);
-
-      if (error) throw error;
+      const players = await fetchPlayersWithProfiles(room.id);
 
       document.getElementById('bjCurrentRoomId').textContent = room.id.substring(0, 8);
       document.getElementById('bjPlayerCount').textContent = `${players?.length || 0}/${room.max_players}`;
@@ -866,10 +886,7 @@ const BJ = (() => {
         .eq('id', roomId)
         .single();
 
-      const { data: players } = await sb
-        .from('blackjack_players')
-        .select('*, profiles!player_id(username)')
-        .eq('room_id', roomId);
+      const players = await fetchPlayersWithProfiles(roomId);
 
       const dealerHand = typeof room.dealer_hand === 'string' ? JSON.parse(room.dealer_hand) : room.dealer_hand;
       renderDealerHand(dealerHand, true);
@@ -1139,10 +1156,7 @@ const BJ = (() => {
 
   const showGameResults = async (roomId) => {
     try {
-      const { data: players } = await sb
-        .from('blackjack_players')
-        .select('*, profiles!player_id(username)')
-        .eq('room_id', roomId);
+      const players = await fetchPlayersWithProfiles(roomId);
 
       let resultsHtml = '<div style="text-align: center;"><h3>Round Over</h3>';
       for (let p of players) {

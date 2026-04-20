@@ -64,6 +64,20 @@ create table if not exists public.blackjack_players (
   updated_at timestamptz not null default now()
 );
 
+-- Optional: enable direct relation blackjack_players -> profiles for PostgREST embedded selects.
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'blackjack_players_player_profile_fkey'
+  ) then
+    alter table public.blackjack_players
+      add constraint blackjack_players_player_profile_fkey
+      foreign key (player_id) references public.profiles(id) on delete cascade;
+  end if;
+end $$;
+
 alter table public.blackjack_players add column if not exists bet bigint not null default 0;
 alter table public.blackjack_players add column if not exists hand text not null default '[]';
 alter table public.blackjack_players add column if not exists score int not null default 0;
