@@ -94,7 +94,7 @@
 
           if (error) throw error;
           if (!profile) {
-            profileStatus.textContent = "Not found. Run the SQL from supabase_profiles.sql (profile trigger).";
+            profileStatus.textContent = "Not found. Run the SQL from SUPABASE_SETUP.sql (profiles + trigger), then refresh.";
           } else {
             profileStatus.textContent = `OK: ${profile.email} | username=${profile.username || "-"} | balance=${profile.balance} | ${profile.created_at}`;
             nickEl.value = profile.username || "";

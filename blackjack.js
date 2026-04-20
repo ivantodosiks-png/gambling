@@ -11,27 +11,46 @@ const BJ = (() => {
   // Helper function to get current user profile
   const getProfile = async () => {
     try {
-      // Получаем текущего пользователя из localStorage
-      const storedUser = localStorage.getItem('gambling_current_user');
-      console.log('📦 storedUser из localStorage:', storedUser);
-      
-      if (!storedUser) {
-        console.error('❌ Пользователь не авторизован (нет в localStorage)');
+      const client = window.sb || (typeof sb !== "undefined" ? sb : null);
+      if (!client) {
+        console.error("❌ Supabase client not found (window.sb).");
         return null;
       }
 
-      const currentUser = JSON.parse(storedUser);
-      console.log('👤 currentUser:', currentUser);
-      
-      if (!currentUser.id) {
-        console.error('❌ Нет ID пользователя');
+      // 1) Supabase Auth session (main flow)
+      let currentUser = null;
+      try {
+        const { data } = await client.auth.getSession();
+        currentUser = data?.session?.user || null;
+      } catch {}
+
+      // 2) Fallback: legacy local auth (auth.js)
+      if (!currentUser) {
+        const storedUser = localStorage.getItem("gambling_current_user");
+        console.log("📦 storedUser из localStorage:", storedUser);
+        if (!storedUser) {
+          console.error("❌ Пользователь не авторизован (нет session и нет localStorage)");
+          return null;
+        }
+        try {
+          currentUser = JSON.parse(storedUser);
+        } catch {
+          console.error("❌ Ошибка чтения пользователя из localStorage");
+          return null;
+        }
+      }
+
+      console.log("👤 currentUser:", currentUser);
+
+      if (!currentUser?.id) {
+        console.error("❌ Нет ID пользователя");
         return null;
       }
 
-      console.log('🔍 Ищем профиль для user_id:', currentUser.id);
+      console.log("🔍 Ищем профиль для user_id:", currentUser.id);
 
       // Получаем профиль из Supabase
-      const { data: profile, error } = await sb
+      const { data: profile, error } = await client
         .from('profiles')
         .select('*')
         .eq('id', currentUser.id)
@@ -42,17 +61,21 @@ const BJ = (() => {
       // Если профиль не найден, создаём его
       if (error || !profile) {
         console.warn('⚠️ Профиль не найден, создаём новый...');
-        
+
+        const email = String(currentUser.email || currentUser.user_metadata?.email || "").trim();
+        const usernameFromEmail = email && email.includes("@") ? email.split("@")[0].slice(0, 24) : "";
+        const username = String(currentUser.username || currentUser.user_metadata?.username || usernameFromEmail || "Player").trim().slice(0, 24);
+
         const newProfile = {
           id: currentUser.id,
-          email: currentUser.email || 'unknown@email.com',
-          username: currentUser.username || 'Player',
+          email: email || 'unknown@email.com',
+          username,
           balance: 5000,
         };
 
         console.log('➕ Создаём новый профиль:', newProfile);
 
-        const { data: created, error: insertError } = await sb
+        const { data: created, error: insertError } = await client
           .from('profiles')
           .insert([newProfile])
           .select()
@@ -63,7 +86,7 @@ const BJ = (() => {
         if (insertError) {
           console.error('❌ Ошибка создания профиля:', insertError);
           // Пробуем ещё раз получить профиль (может быть конфликт)
-          const { data: existing } = await sb
+          const { data: existing } = await client
             .from('profiles')
             .select('*')
             .eq('id', currentUser.id)

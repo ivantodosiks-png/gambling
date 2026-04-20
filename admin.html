@@ -34,6 +34,14 @@
           </div>
           <div class="row" style="justify-content:flex-end;">
             <button id="refreshBtn" class="secondary" type="button">Refresh</button>
+            <button
+              id="backfillBtn"
+              class="secondary"
+              type="button"
+              title="Создать отсутствующие строки в public.profiles из auth.users (нужна RPC-функция admin_backfill_profiles)"
+            >
+              Backfill
+            </button>
             <button id="logoutBtn" type="button">Logout</button>
           </div>
         </div>
@@ -100,6 +108,7 @@
         const rowsEl = document.getElementById("rows");
         const searchEl = document.getElementById("search");
         const refreshBtn = document.getElementById("refreshBtn");
+        const backfillBtn = document.getElementById("backfillBtn");
         const logoutBtn = document.getElementById("logoutBtn");
         const maintEnabledEl = document.getElementById("maintEnabled");
         const maintMessageEl = document.getElementById("maintMessage");
@@ -190,9 +199,26 @@
             return;
           }
           all = data || [];
-          setStatus(`Users: ${all.length}`, "ok");
+          if (!all.length) {
+            setStatus(
+              "Users: 0. Если аккаунты есть в auth.users, но profiles пустая — запустите Backfill (или выполните SQL backfill).",
+              "err",
+            );
+          } else {
+            setStatus(`Users: ${all.length}`, "ok");
+          }
           render();
         }
+
+        backfillBtn.addEventListener("click", async () => {
+          backfillBtn.disabled = true;
+          setStatus("Backfill running...");
+          const { data, error } = await sb.rpc("admin_backfill_profiles");
+          backfillBtn.disabled = false;
+          if (error) return setStatus(`Backfill error: ${error.message}`, "err");
+          setStatus(`Backfill OK. Inserted: ${Number(data || 0)}`, "ok");
+          await load();
+        });
 
         rowsEl.addEventListener("click", async (e) => {
           const btn = e.target?.closest?.("button.save");

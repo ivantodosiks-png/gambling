@@ -2,25 +2,26 @@
 -- ВЫПОЛНИТЕ ВСЕ СТРОКИ НИЖЕ В SUPABASE SQL EDITOR!
 -- ============================================================
 
--- Удаляем старые таблицы (если они мешают)
-drop table if exists public.blackjack_history;
-drop table if exists public.blackjack_players;
-drop table if exists public.blackjack_rooms;
-drop table if exists public.profiles;
+-- ВАЖНО: НЕ запускайте DROP-ы повторно на проде — так вы удалите все данные.
+-- Если нужно полностью сбросить таблицы, используйте отдельный файл `SUPABASE_RESET.sql`.
 
 -- ============ PROFILES TABLE ============
-create table public.profiles (
+create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
-  email text not null,
+  email text,
   username text,
   balance bigint not null default 5000,
   created_at timestamptz not null default now()
 );
 
+alter table public.profiles add column if not exists email text;
+alter table public.profiles add column if not exists username text;
+alter table public.profiles add column if not exists balance bigint not null default 5000;
+alter table public.profiles add column if not exists created_at timestamptz not null default now();
 alter table public.profiles disable row level security;
 
 -- ============ BLACKJACK ROOMS ============
-create table public.blackjack_rooms (
+create table if not exists public.blackjack_rooms (
   id uuid primary key default gen_random_uuid(),
   host_id uuid not null references auth.users(id) on delete cascade,
   status text not null default 'waiting',
@@ -35,10 +36,20 @@ create table public.blackjack_rooms (
   updated_at timestamptz not null default now()
 );
 
+alter table public.blackjack_rooms add column if not exists status text not null default 'waiting';
+alter table public.blackjack_rooms add column if not exists min_bet bigint not null default 10;
+alter table public.blackjack_rooms add column if not exists max_players int not null default 5;
+alter table public.blackjack_rooms add column if not exists current_players int not null default 1;
+alter table public.blackjack_rooms add column if not exists deck text;
+alter table public.blackjack_rooms add column if not exists dealer_hand text;
+alter table public.blackjack_rooms add column if not exists dealer_score int;
+alter table public.blackjack_rooms add column if not exists round_number int not null default 0;
+alter table public.blackjack_rooms add column if not exists created_at timestamptz not null default now();
+alter table public.blackjack_rooms add column if not exists updated_at timestamptz not null default now();
 alter table public.blackjack_rooms disable row level security;
 
 -- ============ BLACKJACK PLAYERS ============
-create table public.blackjack_players (
+create table if not exists public.blackjack_players (
   id uuid primary key default gen_random_uuid(),
   room_id uuid not null references public.blackjack_rooms(id) on delete cascade,
   player_id uuid not null references auth.users(id) on delete cascade,
@@ -53,10 +64,19 @@ create table public.blackjack_players (
   updated_at timestamptz not null default now()
 );
 
+alter table public.blackjack_players add column if not exists bet bigint not null default 0;
+alter table public.blackjack_players add column if not exists hand text not null default '[]';
+alter table public.blackjack_players add column if not exists score int not null default 0;
+alter table public.blackjack_players add column if not exists status text not null default 'waiting';
+alter table public.blackjack_players add column if not exists result text;
+alter table public.blackjack_players add column if not exists winnings bigint not null default 0;
+alter table public.blackjack_players add column if not exists seat_position int not null default 0;
+alter table public.blackjack_players add column if not exists created_at timestamptz not null default now();
+alter table public.blackjack_players add column if not exists updated_at timestamptz not null default now();
 alter table public.blackjack_players disable row level security;
 
 -- ============ BLACKJACK HISTORY ============
-create table public.blackjack_history (
+create table if not exists public.blackjack_history (
   id uuid primary key default gen_random_uuid(),
   player_id uuid not null references auth.users(id) on delete cascade,
   room_id uuid references public.blackjack_rooms(id) on delete set null,
@@ -68,6 +88,81 @@ create table public.blackjack_history (
 );
 
 alter table public.blackjack_history disable row level security;
+
+-- ============ ADMIN / SETTINGS (admin.html + maintenance.js) ============
+create table if not exists public.app_settings (
+  key text primary key,
+  value jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+alter table public.app_settings disable row level security;
+grant all on public.app_settings to authenticated, anon;
+
+-- Admins table (add your user id here via SQL Editor if needed).
+create table if not exists public.admins (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+alter table public.admins disable row level security;
+
+create or replace function public.is_admin()
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  uid uuid := auth.uid();
+  ok boolean := false;
+begin
+  if uid is null then
+    return false;
+  end if;
+
+  if to_regclass('public.admins') is null then
+    return false;
+  end if;
+
+  begin
+    execute 'select exists(select 1 from public.admins where user_id = $1)' into ok using uid;
+    return ok;
+  exception when undefined_column then
+    begin
+      execute 'select exists(select 1 from public.admins where id = $1)' into ok using uid;
+      return ok;
+    exception when undefined_column then
+      return false;
+    end;
+  end;
+end;
+$$;
+grant execute on function public.is_admin() to authenticated, anon;
+
+-- Backfill profiles from existing auth.users (admin-only).
+create or replace function public.admin_backfill_profiles()
+returns int
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  inserted_count int := 0;
+begin
+  if not public.is_admin() then
+    raise exception 'not admin';
+  end if;
+
+  insert into public.profiles (id, email, balance, created_at)
+  select u.id, u.email, 5000, coalesce(u.created_at, now())
+  from auth.users u
+  where not exists (select 1 from public.profiles p where p.id = u.id);
+
+  get diagnostics inserted_count = row_count;
+  return inserted_count;
+end;
+$$;
+grant execute on function public.admin_backfill_profiles() to authenticated;
 
 -- ============ PERMISSIONS ============
 grant all on public.profiles to authenticated, anon;
@@ -144,6 +239,13 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
 after insert on auth.users
 for each row execute procedure public.handle_new_user();
+
+-- ============ BACKFILL EXISTING USERS (SAFE) ============
+-- Если таблица profiles пустая, но в auth.users уже есть аккаунты:
+insert into public.profiles (id, email, balance, created_at)
+select u.id, u.email, 5000, coalesce(u.created_at, now())
+from auth.users u
+on conflict (id) do nothing;
 
 -- ============ ВСЁ ГОТОВО! ============
 -- Теперь:

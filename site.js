@@ -124,6 +124,29 @@
     return data.session.user;
   }
 
+  async function ensureProfile(user) {
+    const sb = window.sb;
+    if (!sb || !user?.id) return null;
+
+    try {
+      const { data: profile, error } = await sb.from("profiles").select("id,email,username,balance,created_at").eq("id", user.id).maybeSingle();
+      if (error) throw error;
+      if (profile) return profile;
+
+      const email = String(user.email || "").trim();
+      const usernameFromEmail = email && email.includes("@") ? email.split("@")[0].slice(0, 24) : "";
+      const username = String(user.user_metadata?.username || usernameFromEmail || "").trim().slice(0, 24) || null;
+
+      const row = { id: user.id, email: email || "unknown@email.com", username, balance: 5000 };
+      const { data: created, error: insertError } = await sb.from("profiles").insert([row]).select("id,email,username,balance,created_at").single();
+      if (insertError) throw insertError;
+      return created || null;
+    } catch {
+      // If table/columns are missing, or insert is blocked, just continue with local defaults.
+      return null;
+    }
+  }
+
   async function loadBalance(userId) {
     const sb = window.sb;
     try {
@@ -885,6 +908,8 @@
     STATE.user = await requireAuth();
     if (!STATE.user) return;
 
+    await ensureProfile(STATE.user);
+
     async function ensureDisclaimerAccepted() {
       const key = "ivan_disclaimer_v1";
       try {
@@ -1095,5 +1120,4 @@ By clicking Accept, you confirm you understand this.
     });
   });
 })();
-
 
