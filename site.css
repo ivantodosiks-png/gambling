@@ -219,6 +219,10 @@ main > .wrap {
 .view { display: none; }
 .view.active { display: block; height: 100%; overflow: hidden; }
 
+/* Crash: fill available height without page scrolling */
+#crashView.view.active .card { height: 100%; display: flex; flex-direction: column; }
+#crashMount { flex: 1 1 auto; min-height: 0; }
+
 /* Controls */
 .ctrl-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
 .ctrl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }

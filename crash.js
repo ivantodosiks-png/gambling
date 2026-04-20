@@ -50,16 +50,21 @@
   }
 
   function genCrashPoint() {
-    // Heavily weighted towards low multipliers (so it can crash very early),
-    // with rare high multipliers up to max.
-    const min = 1.05;
-    const max = 10;
-    const alpha = 3.2; // higher => more low multipliers
+    // Weighted distribution: many low crashes (often <2x), rare high multipliers.
+    // This is "full random" but with realistic odds (not uniform).
+    const r2 = (x) => Math.round(x * 100) / 100;
+    const u = randomFloat01();
+    const v = () => randomFloat01();
 
-    const u = randomFloat01(); // [0,1)
-    const x = min * Math.pow(1 - u, -1 / alpha); // Pareto-like
-    const capped = Math.min(max, Math.max(min, x));
-    return Math.round(capped * 100) / 100;
+    // More generous odds (more >2x), but still with early crashes.
+    // 30%: early crashes (1.05x..1.70x), biased low.
+    if (u < 0.30) return r2(1.05 + Math.pow(v(), 1.7) * (1.70 - 1.05));
+
+    // 50%: mid crashes (1.70x..3.80x), slightly biased low.
+    if (u < 0.80) return r2(1.70 + Math.pow(v(), 1.15) * (3.80 - 1.70));
+
+    // 20%: high crashes (3.80x..10.00x), biased high.
+    return r2(3.80 + Math.pow(v(), 0.75) * (10.00 - 3.80));
   }
 
   function injectStylesOnce() {
@@ -110,6 +115,8 @@
         font-weight: 1000;
       }
       .crash-body { padding: 16px; display: grid; gap: 14px; }
+      /* In-page view: let Crash expand vertically to use free space */
+      #crashView .crash-body { height: 100%; align-content: start; }
       .crash-toprow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
       .crash-pill {
         display: inline-flex;
@@ -123,6 +130,7 @@
         font-weight: 800;
       }
       .crash-grid { display: grid; grid-template-columns: 1fr 320px; gap: 14px; }
+      #crashView .crash-grid { height: 100%; align-content: stretch; }
       @media (max-width: 820px) { .crash-grid { grid-template-columns: 1fr; } }
       .crash-stage {
         border: 1px solid rgba(255,255,255,0.10);
@@ -131,7 +139,7 @@
           linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px) 0 0 / 44px 44px,
           rgba(255,255,255,0.04);
         border-radius: 16px;
-        min-height: 260px;
+        min-height: 340px;
         display: grid;
         place-items: center;
         padding: 16px;
@@ -199,7 +207,7 @@
       .crash-hud .crash-hud-value{ margin-top: 4px; font-size: 16px; font-weight: 1100; letter-spacing: -0.2px; }
       .crash-hud .crash-hud-sub{ margin-top: 2px; font-size: 12px; color: rgba(233,237,247,0.72); font-weight: 800; }
       .crash-mult {
-        font-size: clamp(44px, 7vw, 78px);
+        font-size: clamp(54px, 7.6vw, 92px);
         font-weight: 1100;
         letter-spacing: -0.6px;
         color: #33d18f;
