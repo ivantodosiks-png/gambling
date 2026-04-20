@@ -198,6 +198,13 @@
     persistBalanceDebounced();
   }
 
+  // Expose minimal balance API for mini-games (e.g. Crash modal).
+  // Keeps Supabase persistence behavior via existing `setBalance`.
+  window.casinoBalance = {
+    get: () => STATE.balance,
+    set: (next) => setBalance(next),
+  };
+
   function setUserId(text) {
     qs("userIdValue").textContent = text || "-";
   }
@@ -1120,4 +1127,3 @@ By clicking Accept, you confirm you understand this.
     });
   });
 })();
-

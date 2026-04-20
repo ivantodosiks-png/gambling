@@ -30,19 +30,19 @@ function createUpgradeEngine(config) {
     const inventory = getInventory();
     const source = inventory.find((item) => item.id === state.selectedInventoryId);
     if (!source) {
-      setResultText("Выберите предмет в инвентаре.");
+      setResultText("Select an item in your inventory.");
       return null;
     }
     const target = pickTarget();
     if (!target) {
-      setResultText("Целевой скин не найден.");
+      setResultText("Target skin not found.");
       return null;
     }
     const success = Math.random() * 100 <= state.percent;
     removeInventoryItem(source.id);
     if (success) {
       addInventoryItem({ ...target });
-      setResultText(`Успех ${state.percent}%: ${source.name} -> ${target.name}`);
+      setResultText(`Success ${state.percent}%: ${source.name} -> ${target.name}`);
       return { success: true, target };
     }
 
@@ -51,7 +51,7 @@ function createUpgradeEngine(config) {
       .sort((a, b) => b.price - a.price);
     const failItem = cheaper[0] || source;
     addInventoryItem({ ...failItem });
-    setResultText(`Неудача: получен ${failItem.name}`);
+    setResultText(`Failed: received ${failItem.name}`);
     return { success: false, target: failItem };
   }
 

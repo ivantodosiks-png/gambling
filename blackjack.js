@@ -218,7 +218,7 @@ const BJ = (() => {
       
       if (response.error) {
         console.error('❌ Ошибка RPC:', response.error);
-        showMessage('bjLobbyMsg', `Ошибка загрузки комнат: ${response.error.message}`, 'error');
+        showMessage('bjLobbyMsg', `Failed to load rooms: ${response.error.message}`, 'error');
         return;
       }
 
@@ -229,7 +229,7 @@ const BJ = (() => {
       list.innerHTML = '';
       
       if (!rooms || rooms.length === 0) {
-        list.innerHTML = '<div class="bj-room-item" style="cursor:auto; color: var(--muted);">Нет доступных комнат</div>';
+        list.innerHTML = '<div class="bj-room-item" style="cursor:auto; color: var(--muted);">No available rooms</div>';
         return;
       }
       
@@ -238,16 +238,16 @@ const BJ = (() => {
         item.className = 'bj-room-item';
         item.innerHTML = `
           <div>
-            <div style="font-weight: 600;">Комната ${room.id.substring(0, 8)}</div>
-            <div style="font-size: 12px; color: var(--muted);">Мин ставка: ${room.min_bet} | Игроков: ${room.current_players}/${room.max_players}</div>
+            <div style="font-weight: 600;">Room ${room.id.substring(0, 8)}</div>
+            <div style="font-size: 12px; color: var(--muted);">Min bet: ${room.min_bet} | Players: ${room.current_players}/${room.max_players}</div>
           </div>
-          <button class="secondary" type="button" onclick="BJ.joinRoom('${room.id}')">Присоединиться</button>
+          <button class="secondary" type="button" onclick="BJ.joinRoom('${room.id}')">Join</button>
         `;
         list.appendChild(item);
       }
     } catch (error) {
       console.error('❌ Критическая ошибка renderRoomsList:', error);
-      showMessage('bjLobbyMsg', `Ошибка: ${error.message}`, 'error');
+      showMessage('bjLobbyMsg', `Error: ${error.message}`, 'error');
     }
   };
 
@@ -371,13 +371,13 @@ const BJ = (() => {
       console.log('📋 getProfile вернул:', profile);
       
       if (!profile) {
-        showMessage('bjLobbyMsg', 'Ошибка: не удалось получить профиль. Перезагрузитесь.', 'error');
+        showMessage('bjLobbyMsg', 'Error: could not load profile. Please refresh.', 'error');
         return;
       }
 
       const minBet = parseInt(document.getElementById('bjMinBetInput').value) || 10;
       if (minBet < 1) {
-        showMessage('bjLobbyMsg', 'Минимальная ставка должна быть не менее 1', 'error');
+        showMessage('bjLobbyMsg', 'Minimum bet must be at least 1', 'error');
         return;
       }
 
@@ -406,7 +406,7 @@ const BJ = (() => {
 
       if (error) {
         console.error('❌ Ошибка вставки комнаты:', error);
-        showMessage('bjLobbyMsg', `Ошибка создания комнаты: ${error.message}`, 'error');
+        showMessage('bjLobbyMsg', `Failed to create room: ${error.message}`, 'error');
         return;
       }
 
@@ -431,7 +431,7 @@ const BJ = (() => {
 
       if (playerError) {
         console.error('❌ Ошибка вставки игрока:', playerError);
-        showMessage('bjLobbyMsg', `Ошибка добавления игрока: ${playerError.message}`, 'error');
+        showMessage('bjLobbyMsg', `Failed to add player: ${playerError.message}`, 'error');
         return;
       }
 
@@ -441,7 +441,7 @@ const BJ = (() => {
       state.currentPlayer = profile.id;
       state.currentRoomStatus = 'waiting';
 
-      showMessage('bjLobbyMsg', '✅ Комната создана! Ожидаем других игроков...', 'success');
+      showMessage('bjLobbyMsg', 'Room created! Waiting for other players...', 'success');
       showLobby(false);
       showWaitingRoom(true);
       setWaitingRoomId(roomId);
@@ -450,7 +450,7 @@ const BJ = (() => {
       subscribeToRoom(roomId);
     } catch (error) {
       console.error('❌ Критическая ошибка создания комнаты:', error);
-      showMessage('bjLobbyMsg', `Критическая ошибка: ${error.message}`, 'error');
+      showMessage('bjLobbyMsg', `Critical error: ${error.message}`, 'error');
     }
   };
 
@@ -1284,12 +1284,12 @@ const BJ = (() => {
     el.style.padding = '24px';
     el.innerHTML = `
       <div style="width:min(720px,100%); border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.06); border-radius:18px; padding:18px; text-align:center;">
-        <div style="font-weight:1000; font-size:18px; margin-bottom:6px;">Вы не админ</div>
-        <div style="color:rgba(233,237,247,0.72); font-size:13px;">Blackjack временно закрыт. Админ откроет его в админ-панели.</div>
+        <div style="font-weight:1000; font-size:18px; margin-bottom:6px;">Admin only</div>
+        <div style="color:rgba(233,237,247,0.72); font-size:13px;">Blackjack is temporarily locked. An admin can unlock it in the admin panel.</div>
         <div style="margin-top:12px; white-space:pre-wrap;">${String(message || '').replace(/</g, '&lt;')}</div>
         <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:14px;">
-          <button id="bjBlockedRefresh" class="primary-wide" type="button">Обновить</button>
-          <button id="bjBlockedBack" class="ghost" type="button">Назад</button>
+          <button id="bjBlockedRefresh" class="primary-wide" type="button">Refresh</button>
+          <button id="bjBlockedBack" class="ghost" type="button">Back</button>
         </div>
       </div>
     `;
@@ -1315,7 +1315,7 @@ const BJ = (() => {
     
     if (!window.sb) {
       console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: sb не инициализирован! Проверьте supabase-config.js');
-      showMessage('bjLobbyMsg', 'Ошибка: Supabase не инициализирован', 'error');
+      showMessage('bjLobbyMsg', 'Error: Supabase is not initialized', 'error');
       return;
     }
 

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -38,7 +38,7 @@
               id="backfillBtn"
               class="secondary"
               type="button"
-              title="Создать отсутствующие строки в public.profiles из auth.users (нужна RPC-функция admin_backfill_profiles)"
+              title="Create missing rows in public.profiles from auth.users (requires RPC admin_backfill_profiles)"
             >
               Backfill
             </button>
@@ -243,7 +243,7 @@
           all = data || [];
           if (!all.length) {
             setStatus(
-              "Users: 0. Если аккаунты есть в auth.users, но profiles пустая — запустите Backfill (или выполните SQL backfill).",
+              "Users: 0. If accounts exist in auth.users but profiles is empty, run Backfill (or execute the SQL backfill).",
               "err",
             );
           } else {
