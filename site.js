@@ -174,9 +174,6 @@
   }
 
   async function loadBalance(userId) {
-    const local = loadBalanceFromLocalStorage(userId);
-    if (typeof local === "number") return local;
-
     const sb = window.sb;
     try {
       const { data: profile, error } = await sb
@@ -187,13 +184,22 @@
 
       if (error) throw error;
       const bal = Number(profile?.balance);
-      if (Number.isFinite(bal) && bal >= 0) return bal;
-      return 5000;
+      if (Number.isFinite(bal) && bal >= 0) {
+        const n = Math.floor(bal);
+        persistBalanceToLocalStorage(userId, n);
+        return n;
+      }
+      const local = loadBalanceFromLocalStorage(userId);
+      return typeof local === "number" ? local : 5000;
     } catch (e) {
       const msg = e?.message || "";
       // If balance column missing, fallback to local balance.
-      if (msg.includes("column") && msg.includes("balance") && msg.includes("does not exist")) return 5000;
-      return 5000;
+      if (msg.includes("column") && msg.includes("balance") && msg.includes("does not exist")) {
+        const local = loadBalanceFromLocalStorage(userId);
+        return typeof local === "number" ? local : 5000;
+      }
+      const local = loadBalanceFromLocalStorage(userId);
+      return typeof local === "number" ? local : 5000;
     }
   }
 

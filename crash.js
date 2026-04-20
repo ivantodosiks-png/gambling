@@ -116,7 +116,7 @@
       }
       .crash-body { padding: 16px; display: grid; gap: 14px; }
       /* In-page view: let Crash expand vertically to use free space */
-      #crashView .crash-body { height: 100%; align-content: start; }
+      #crashView .crash-body { height: 100%; align-content: start; display: flex; flex-direction: column; }
       .crash-toprow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
       .crash-pill {
         display: inline-flex;
@@ -130,7 +130,7 @@
         font-weight: 800;
       }
       .crash-grid { display: grid; grid-template-columns: 1fr 320px; gap: 14px; }
-      #crashView .crash-grid { height: 100%; align-content: stretch; }
+      #crashView .crash-grid { flex: 1 1 auto; min-height: 0; align-content: stretch; }
       @media (max-width: 820px) { .crash-grid { grid-template-columns: 1fr; } }
       .crash-stage {
         border: 1px solid rgba(255,255,255,0.10);
@@ -146,6 +146,7 @@
         position: relative;
         overflow: hidden;
       }
+      #crashView .crash-stage { min-height: 0; height: 100%; }
       .crash-stage::after{
         content:"";
         position:absolute;
@@ -229,6 +230,7 @@
         gap: 10px;
         align-content: start;
       }
+      #crashView .crash-side { height: 100%; }
       .crash-row { display: grid; gap: 6px; }
       .crash-label { font-size: 12px; color: rgba(233,237,247,0.72); font-weight: 800; }
       .crash-input {
@@ -294,13 +296,13 @@
 
     host.setAttribute("data-crash-ready", "1");
     host.innerHTML = `
-      <div class="crash-body" style="padding: 0;">
+      <div class="crash-body" style="padding: 0; height: 100%;">
         <div class="crash-toprow">
           <div class="crash-title">Crash</div>
           <div class="crash-pill">Balance: <span id="crash-balance">0</span></div>
           <div class="crash-pill">Status: <span id="crash-status">Waiting</span></div>
         </div>
-        <div class="crash-grid" style="margin-top: 12px;">
+        <div class="crash-grid" style="margin-top: 12px; flex: 1 1 auto; min-height: 0;">
           <div class="crash-stage" id="crash-stage">
             <div class="crash-chart" aria-hidden="true">
               <svg viewBox="0 0 520 300" preserveAspectRatio="none">
