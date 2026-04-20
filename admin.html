@@ -266,10 +266,7 @@
 
         async function load() {
           setStatus("Loading users...");
-          const { data, error } = await sb
-            .from("profiles")
-            .select("id,email,balance,created_at")
-            .order("created_at", { ascending: false });
+          const { data, error } = await sb.rpc("admin_list_profiles", { p_limit: 500 });
 
           if (error) {
             const msg = error.message || "";
@@ -311,7 +308,7 @@
           if (!Number.isFinite(balance) || balance < 0) return setStatus("Balance must be a number >= 0", "err");
 
           btn.disabled = true;
-          const { error } = await sb.from("profiles").update({ balance }).eq("id", id);
+          const { error } = await sb.rpc("admin_set_balance", { p_user_id: id, p_balance: Math.max(0, Math.floor(balance)) });
           btn.disabled = false;
 
           if (error) return setStatus(`Update error: ${error.message}`, "err");

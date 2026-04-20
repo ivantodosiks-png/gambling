@@ -275,6 +275,56 @@ begin
 end;
 $$;
 
+-- ============ ADMIN RPC - List users / Set balance (works even if RLS is enabled) ============
+create or replace function public.admin_list_profiles(p_limit int default 500)
+returns table (
+  id uuid,
+  email text,
+  balance bigint,
+  created_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'not admin';
+  end if;
+
+  return query
+  select p.id, p.email, p.balance, p.created_at
+  from public.profiles p
+  order by p.created_at desc
+  limit p_limit;
+end;
+$$;
+grant execute on function public.admin_list_profiles(int) to authenticated;
+
+create or replace function public.admin_set_balance(p_user_id uuid, p_balance bigint)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'not admin';
+  end if;
+  if p_user_id is null then
+    raise exception 'missing user id';
+  end if;
+  if p_balance is null or p_balance < 0 then
+    raise exception 'balance must be >= 0';
+  end if;
+
+  update public.profiles
+  set balance = p_balance
+  where id = p_user_id;
+end;
+$$;
+grant execute on function public.admin_set_balance(uuid, bigint) to authenticated;
+
 -- ============ AUTO CREATE PROFILE ON NEW USER ============
 create or replace function public.handle_new_user()
 returns trigger
