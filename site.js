@@ -55,6 +55,32 @@
     return document.getElementById(id);
   }
 
+  const BALANCE_LS_PREFIX = "casino_balance_v1:";
+
+  function balanceStorageKey(userId) {
+    const uid = String(userId || "").trim();
+    return uid ? `${BALANCE_LS_PREFIX}${uid}` : `${BALANCE_LS_PREFIX}unknown`;
+  }
+
+  function loadBalanceFromLocalStorage(userId) {
+    try {
+      const raw = localStorage.getItem(balanceStorageKey(userId));
+      const n = Number(raw);
+      if (Number.isFinite(n) && n >= 0) return Math.floor(n);
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  function persistBalanceToLocalStorage(userId, balance) {
+    try {
+      localStorage.setItem(balanceStorageKey(userId), String(Math.max(0, Math.floor(Number(balance) || 0))));
+    } catch {
+      // ignore
+    }
+  }
+
   function fmt(n) {
     const x = Number(n) || 0;
     return x.toLocaleString("en-US");
@@ -148,6 +174,9 @@
   }
 
   async function loadBalance(userId) {
+    const local = loadBalanceFromLocalStorage(userId);
+    if (typeof local === "number") return local;
+
     const sb = window.sb;
     try {
       const { data: profile, error } = await sb
@@ -195,6 +224,7 @@
     const n = Math.max(0, Math.floor(Number(next) || 0));
     STATE.balance = n;
     qs("balanceValue").textContent = fmt(n);
+    if (STATE.user?.id) persistBalanceToLocalStorage(STATE.user.id, n);
     persistBalanceDebounced();
   }
 
@@ -961,8 +991,7 @@ By clicking Accept, you confirm you understand this.
 
     setUserId(STATE.user.id);
 
-    STATE.balance = await loadBalance(STATE.user.id);
-    setBalance(STATE.balance);
+    setBalance(await loadBalance(STATE.user.id));
 
     // Top buttons
     qs("logoutBtn").addEventListener("click", async () => {
