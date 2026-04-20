@@ -276,8 +276,8 @@
             error = { message: e?.message || "RPC error" };
           }
 
-          // Fallback if RPC isn't installed yet (or schema cache is stale).
-          if (error && String(error.message || "").toLowerCase().includes("admin_list_profiles")) {
+          // Fallback to direct select (works when RLS policies allow admin read).
+          if (error) {
             const res2 = await sb.from("profiles").select("id,email,balance,created_at").order("created_at", { ascending: false });
             data = res2.data;
             error = res2.error;
@@ -331,8 +331,8 @@
           } catch (e) {
             error = { message: e?.message || "RPC error" };
           }
-          // Fallback if RPC isn't installed yet.
-          if (error && String(error.message || "").toLowerCase().includes("admin_set_balance")) {
+          // Fallback to direct update (works when RLS policies allow admin update).
+          if (error) {
             const res2 = await sb.from("profiles").update({ balance: payload.p_balance }).eq("id", id);
             error = res2.error;
           }

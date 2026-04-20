@@ -297,6 +297,7 @@
     // Re-measure layouts after switching tabs (hidden elements report 0 sizes).
     if (view === "minesView") setTimeout(() => renderMinesGrid(), 0);
     if (view === "rouletteView") setTimeout(() => buildWheel(), 0);
+    if (view === "plinkoView") setTimeout(() => window.plinkoGame?.onShow?.(), 0);
   }
   // ---- Roulette ----
   function fmtCompact(n) {
@@ -1080,6 +1081,7 @@ By clicking Accept, you confirm you understand this.
     qs("tab_minesView").addEventListener("click", () => switchView("minesView"));
     qs("tab_blackjackView").addEventListener("click", () => switchView("blackjackView"));
     qs("tab_crashView")?.addEventListener("click", () => switchView("crashView"));
+    qs("tab_plinkoView")?.addEventListener("click", () => switchView("plinkoView"));
     switchView("rouletteView");
 
     // Roulette UI

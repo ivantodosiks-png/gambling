@@ -18,7 +18,54 @@ alter table public.profiles add column if not exists email text;
 alter table public.profiles add column if not exists username text;
 alter table public.profiles add column if not exists balance bigint not null default 5000;
 alter table public.profiles add column if not exists created_at timestamptz not null default now();
-alter table public.profiles disable row level security;
+-- RLS NOTE:
+-- If you enable RLS on profiles, you MUST have policies, otherwise the app can't update balances.
+-- This setup enables RLS and adds safe policies:
+-- - users can read/update only their own profile
+-- - admins (public.is_admin() = true) can read/update any profile
+alter table public.profiles enable row level security;
+
+do $$
+begin
+  -- Drop old policies if they exist (to keep this file re-runnable).
+  if exists (select 1 from pg_policies where schemaname='public' and tablename='profiles' and policyname='profiles_select_own_or_admin') then
+    execute 'drop policy profiles_select_own_or_admin on public.profiles';
+  end if;
+  if exists (select 1 from pg_policies where schemaname='public' and tablename='profiles' and policyname='profiles_update_own_or_admin') then
+    execute 'drop policy profiles_update_own_or_admin on public.profiles';
+  end if;
+  if exists (select 1 from pg_policies where schemaname='public' and tablename='profiles' and policyname='profiles_insert_self') then
+    execute 'drop policy profiles_insert_self on public.profiles';
+  end if;
+
+  -- Read own profile (or any profile if admin).
+  execute $p$
+    create policy profiles_select_own_or_admin
+    on public.profiles
+    for select
+    to authenticated
+    using (id = auth.uid() or public.is_admin())
+  $p$;
+
+  -- Update own profile (or any profile if admin). Used for balance updates from the app and from admin panel.
+  execute $p$
+    create policy profiles_update_own_or_admin
+    on public.profiles
+    for update
+    to authenticated
+    using (id = auth.uid() or public.is_admin())
+    with check (id = auth.uid() or public.is_admin())
+  $p$;
+
+  -- Allow users to insert their own profile row if needed.
+  execute $p$
+    create policy profiles_insert_self
+    on public.profiles
+    for insert
+    to authenticated
+    with check (id = auth.uid() or public.is_admin())
+  $p$;
+end $$;
 
 -- ============ BLACKJACK ROOMS ============
 create table if not exists public.blackjack_rooms (
