@@ -89,6 +89,47 @@ alter table public.blackjack_players add column if not exists created_at timesta
 alter table public.blackjack_players add column if not exists updated_at timestamptz not null default now();
 alter table public.blackjack_players disable row level security;
 
+-- Keep blackjack_rooms.current_players in sync and auto-delete empty rooms.
+create or replace function public.bj_sync_room_player_count()
+returns trigger
+language plpgsql
+as $$
+declare
+  rid uuid;
+  cnt int;
+begin
+  rid := coalesce(new.room_id, old.room_id);
+  if rid is null then
+    return null;
+  end if;
+
+  select count(*)::int into cnt
+  from public.blackjack_players
+  where room_id = rid;
+
+  if cnt <= 0 then
+    delete from public.blackjack_rooms where id = rid;
+  else
+    update public.blackjack_rooms
+    set current_players = cnt,
+        updated_at = now()
+    where id = rid;
+  end if;
+
+  return null;
+end;
+$$;
+
+drop trigger if exists bj_players_after_insert on public.blackjack_players;
+create trigger bj_players_after_insert
+after insert on public.blackjack_players
+for each row execute procedure public.bj_sync_room_player_count();
+
+drop trigger if exists bj_players_after_delete on public.blackjack_players;
+create trigger bj_players_after_delete
+after delete on public.blackjack_players
+for each row execute procedure public.bj_sync_room_player_count();
+
 -- ============ BLACKJACK HISTORY ============
 create table if not exists public.blackjack_history (
   id uuid primary key default gen_random_uuid(),

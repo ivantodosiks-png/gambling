@@ -155,9 +155,25 @@ const BJ = (() => {
   };
 
   const shuffleDeck = (deck) => {
+    const randomInt = (maxExclusive) => {
+      if (!maxExclusive || maxExclusive <= 0) return 0;
+      const cryptoObj = (typeof crypto !== 'undefined' && crypto.getRandomValues) ? crypto : null;
+      if (!cryptoObj) return Math.floor(Math.random() * maxExclusive);
+
+      // Rejection sampling to avoid modulo bias.
+      const range = 0x100000000; // 2^32
+      const limit = range - (range % maxExclusive);
+      const buf = new Uint32Array(1);
+      while (true) {
+        cryptoObj.getRandomValues(buf);
+        const x = buf[0];
+        if (x < limit) return x % maxExclusive;
+      }
+    };
+
     const copy = [...deck];
     for (let i = copy.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = randomInt(i + 1);
       [copy[i], copy[j]] = [copy[j], copy[i]];
     }
     return copy;
@@ -285,17 +301,25 @@ const BJ = (() => {
     return display;
   };
 
-  const renderDealerHand = (cards, hideFirst = false) => {
+  const renderDealerHand = (cards, hideHoleCard = false) => {
     const container = document.getElementById('bjDealerHand');
     container.innerHTML = '';
     
     for (let i = 0; i < cards.length; i++) {
-      if (hideFirst && i === 0) {
+      // Standard blackjack: hide the dealer's second (hole) card during play.
+      if (hideHoleCard && i === 1) {
         container.appendChild(formatHiddenCard());
       } else {
         container.appendChild(formatCardDisplay(cards[i]));
       }
     }
+  };
+
+  const setBettingLockedUI = (locked) => {
+    const betInput = document.getElementById('bjBetInput');
+    const betBtn = document.getElementById('bjConfirmBetBtn');
+    if (betInput) betInput.disabled = !!locked;
+    if (betBtn) betBtn.disabled = !!locked;
   };
 
   const renderPlayersArea = (gameState) => {
@@ -592,8 +616,9 @@ const BJ = (() => {
       showWaitingRoom(false);
       showGameTable(true);
       document.getElementById('bjBettingPhase').style.display = 'none';
-      document.getElementById('bjControls').style.display = 'flex';
+      document.getElementById('bjControls').style.display = room.status === 'results' ? 'none' : 'flex';
       await renderGameState(room.id);
+      if (room.status === 'results') await showGameResults(room.id);
       return;
     }
   };
@@ -604,10 +629,6 @@ const BJ = (() => {
       if (error) throw error;
       if (!room) return;
       await handleRoomUpdate(room);
-
-      // Also refresh players list/state depending on room status.
-      if (room.status === 'waiting') await renderWaitingRoom(roomId);
-      if (room.status === 'betting' || room.status === 'playing' || room.status === 'results') await renderGameState(roomId);
     } catch (e) {
       console.warn('syncRoomOnce error:', e?.message || e);
     }
@@ -779,6 +800,10 @@ const BJ = (() => {
 
       renderPlayersArea({ players: players || [] });
       renderDealerHand([]);
+
+      const profile = await getProfile();
+      const me = profile ? (players || []).find((p) => p.player_id === profile.id) : null;
+      setBettingLockedUI(!!me?.bet);
     } catch (error) {
       console.error('Error starting game view:', error);
     }
@@ -791,7 +816,24 @@ const BJ = (() => {
       const profile = await getProfile();
       if (!profile) throw new Error('No profile');
 
-      const bet = parseInt(document.getElementById('bjBetInput').value);
+      const { data: currentPlayerRow, error: currentPlayerErr } = await sb
+        .from('blackjack_players')
+        .select('bet, status')
+        .eq('room_id', state.currentRoom)
+        .eq('player_id', profile.id)
+        .maybeSingle();
+      if (currentPlayerErr) throw currentPlayerErr;
+      if (currentPlayerRow?.bet > 0) {
+        setBettingLockedUI(true);
+        showMessage('bjBettingMsg', 'Bet already locked', 'error');
+        return;
+      }
+
+      const bet = parseInt(document.getElementById('bjBetInput').value, 10);
+      if (!Number.isFinite(bet) || bet <= 0) {
+        showMessage('bjBettingMsg', 'Enter a valid bet', 'error');
+        return;
+      }
       const { data: room } = await sb
         .from('blackjack_rooms')
         .select()
@@ -814,6 +856,7 @@ const BJ = (() => {
         .update({ bet: bet, status: 'betting' })
         .eq('room_id', state.currentRoom)
         .eq('player_id', profile.id);
+      setBettingLockedUI(true);
 
       // Check if all players have bet
       const { data: players } = await sb
@@ -823,7 +866,8 @@ const BJ = (() => {
 
       const allBet = players.every(p => p.bet > 0);
       if (allBet) {
-        startRound(state.currentRoom, room);
+        const isHost = room && room.host_id === profile.id;
+        if (isHost) startRound(state.currentRoom, room);
       }
 
       showMessage('bjBettingMsg', 'Bet confirmed!', 'success');
@@ -835,6 +879,14 @@ const BJ = (() => {
 
   const startRound = async (roomId, room) => {
     try {
+      const { data: latestRoom, error: latestRoomErr } = await sb
+        .from('blackjack_rooms')
+        .select()
+        .eq('id', roomId)
+        .single();
+      if (latestRoomErr) throw latestRoomErr;
+      if (!latestRoom || latestRoom.status !== 'betting') return;
+
       const deck = createDeck();
       const { data: players } = await sb
         .from('blackjack_players')
@@ -843,12 +895,15 @@ const BJ = (() => {
 
       // Deal cards
       for (let p of players) {
+        const initialHand = [deck[0], deck[1]];
+        const initialScore = calculateHandScore(initialHand);
+        const initialStatus = initialScore === 21 ? 'blackjack' : 'playing';
         await sb
           .from('blackjack_players')
           .update({
-            hand: JSON.stringify([deck[0], deck[1]]),
-            score: calculateHandScore([deck[0], deck[1]]),
-            status: 'playing',
+            hand: JSON.stringify(initialHand),
+            score: initialScore,
+            status: initialStatus,
           })
           .eq('room_id', roomId)
           .eq('player_id', p.player_id);
@@ -873,6 +928,7 @@ const BJ = (() => {
       document.getElementById('bjBettingPhase').style.display = 'none';
       document.getElementById('bjControls').style.display = 'flex';
       renderGameState(roomId);
+      checkRoundEnd(roomId);
     } catch (error) {
       console.error('Error starting round:', error);
     }
@@ -889,8 +945,10 @@ const BJ = (() => {
       const players = await fetchPlayersWithProfiles(roomId);
 
       const dealerHand = typeof room.dealer_hand === 'string' ? JSON.parse(room.dealer_hand) : room.dealer_hand;
-      renderDealerHand(dealerHand, true);
-      document.getElementById('bjDealerScore').textContent = calculateHandScore([dealerHand[0]]);
+      const revealDealer = room.status === 'results' || room.status === 'finished';
+      renderDealerHand(dealerHand, !revealDealer);
+      const visibleScore = revealDealer ? calculateHandScore(dealerHand) : calculateHandScore([dealerHand[0]]);
+      document.getElementById('bjDealerScore').textContent = String(visibleScore || 0);
 
       const playersWithParsedHands = players.map(p => ({
         ...p,
@@ -936,13 +994,14 @@ const BJ = (() => {
       const newDeck = deck.slice(1);
       const newHand = [...hand, newCard];
       const newScore = calculateHandScore(newHand);
+      const newStatus = newScore > 21 ? 'bust' : (newScore === 21 ? 'stand' : 'playing');
 
       await sb
         .from('blackjack_players')
         .update({
           hand: JSON.stringify(newHand),
           score: newScore,
-          status: newScore > 21 ? 'bust' : 'playing',
+          status: newStatus,
         })
         .eq('room_id', state.currentRoom)
         .eq('player_id', profile.id);
@@ -953,6 +1012,7 @@ const BJ = (() => {
         .eq('id', state.currentRoom);
 
       renderGameState(state.currentRoom);
+      if (newStatus === 'bust' || newStatus === 'stand') checkRoundEnd(state.currentRoom);
     } catch (error) {
       console.error('Error hitting:', error);
     }
@@ -1032,6 +1092,17 @@ const BJ = (() => {
 
   const checkRoundEnd = async (roomId) => {
     try {
+      const profile = await getProfile();
+      if (!profile) return;
+
+      const { data: room } = await sb
+        .from('blackjack_rooms')
+        .select('host_id, status')
+        .eq('id', roomId)
+        .maybeSingle();
+
+      if (!room || (room.status !== 'playing' && room.status !== 'results')) return;
+
       const { data: players } = await sb
         .from('blackjack_players')
         .select()
@@ -1039,7 +1110,7 @@ const BJ = (() => {
 
       const allFinished = players.every(p => ['bust', 'stand', 'blackjack'].includes(p.status));
       if (allFinished) {
-        await dealerPlay(roomId);
+        if (room.host_id === profile.id) await dealerPlay(roomId);
       }
     } catch (error) {
       console.error('Error checking round end:', error);
@@ -1069,7 +1140,7 @@ const BJ = (() => {
         .update({
           dealer_hand: JSON.stringify(dealerHand),
           dealer_score: dealerScore,
-          status: 'finished',
+          status: 'results',
         })
         .eq('id', roomId);
 
