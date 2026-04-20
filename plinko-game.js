@@ -188,10 +188,7 @@
     let slotRects = [];
     let highlight = -1;
 
-    let running = false;
-    let settled = false;
-    let currentBet = 0;
-    let ball = null; // {x,y,vx,vy,r}
+    let balls = []; // [{x,y,vx,vy,r,bet,inSlot,slotIdx,enterAt,settle}]
     let raf = 0;
     let lastT = 0;
 
@@ -312,20 +309,17 @@
 
       // Ball radius relative to slot width.
       const ballR = Math.max(6 * dpr, Math.min(10 * dpr, slotW * 0.16));
-      if (ball) ball.r = ballR;
+      for (const b of balls) b.r = ballR;
     }
 
     function reset() {
-      running = false;
-      settled = false;
-      currentBet = 0;
-      ball = null;
+      balls = [];
       highlight = -1;
       setStatus("Waiting", "");
       setHint("");
       toast("Ready", "Drop a ball.");
       dropBtn.disabled = false;
-      betEl.disabled = false;
+      setBalanceUI();
       draw();
     }
 
@@ -336,46 +330,39 @@
       const r = Math.max(6 * dpr, Math.min(10 * dpr, slotW * 0.16));
       const x = w / 2 + (Math.random() - 0.5) * slotW * 0.25;
       const y = padTop + 10 * dpr;
-      const vx = (Math.random() - 0.5) * 60 * dpr;
+      const vx = (Math.random() - 0.5) * 38 * dpr;
       const vy = 0;
-      ball = { x, y, vx, vy, r };
+      return { x, y, vx, vy, r, bet: 0, inSlot: false, slotIdx: 0, enterAt: 0, settle: 0 };
     }
 
     function drop() {
-      if (running) return;
+      // Allow multiple balls.
       const bet = Math.max(1, Math.floor(Number(betEl.value) || 0));
       if (!Number.isFinite(bet) || bet <= 0) return setHint("Enter a valid bet.");
 
       const bal = balanceApi.get();
       if (bet > bal) return setHint("Insufficient balance.");
+      if (balls.length >= 25) return setHint("Too many balls. Wait for a few to finish.");
 
       // Take bet.
       balanceApi.set(bal - bet);
       setBalanceUI();
 
-      currentBet = bet;
-      running = true;
-      settled = false;
       highlight = -1;
-      setStatus("Running", "run");
+      setStatus(`Running (${balls.length + 1})`, "run");
       setHint("");
       toast("Running", `Bet: ${fmt(bet)}`);
-
-      dropBtn.disabled = true;
-      betEl.disabled = true;
-
-      spawnBall();
+      const b = spawnBall();
+      b.bet = bet;
+      balls.push(b);
     }
 
-    function finish(slotIdx) {
-      if (settled) return;
-      settled = true;
-      running = false;
+    function finishBall(b, slotIdx) {
       highlight = slotIdx;
 
       const m = Number(multipliers[slotIdx] ?? 0);
-      const win = Math.floor(currentBet * m);
-      const profit = win - currentBet;
+      const win = Math.floor((b.bet || 0) * m);
+      const profit = win - (b.bet || 0);
 
       balanceApi.set(balanceApi.get() + win);
       setBalanceUI();
@@ -388,79 +375,130 @@
       setStatus("Finished", profit >= 0 ? "win" : "lose");
       setHint(profit >= 0 ? `Win: +${fmt(profit)} (x${m.toFixed(m >= 10 ? 0 : 1)})` : `Loss: ${fmt(profit)} (x${m.toFixed(m >= 10 ? 0 : 1)})`);
       toast(`x${m.toFixed(m >= 10 ? 0 : 1)}`, profit >= 0 ? `WIN +${fmt(profit)}` : `LOST ${fmt(profit)}`);
-
-      dropBtn.disabled = false;
-      betEl.disabled = false;
+      if (!balls.length) setStatus("Waiting", "");
     }
 
     function step(dt) {
-      if (!running || !ball) return;
+      if (!balls.length) return;
 
       const w = canvas.width;
       const h = canvas.height;
       const padX = Math.floor(22 * dpr);
       const slotTop = canvas.height - Math.floor(46 * dpr);
+      const slotBottom = slotTop + Math.max(28 * dpr, Math.floor(h * 0.11));
 
-      const g = 2000 * dpr; // px/s^2
-      ball.vy += g * dt;
+      const g = 1350 * dpr; // px/s^2 (slower)
 
-      ball.x += ball.vx * dt;
-      ball.y += ball.vy * dt;
+      const slotW = (w - padX * 2) / slotsCount;
 
-      // Walls (keep inside triangle-ish width; use soft side walls).
-      if (ball.x - ball.r < padX) {
-        ball.x = padX + ball.r;
-        ball.vx = Math.abs(ball.vx) * 0.78 + Math.random() * 24 * dpr;
-      }
-      if (ball.x + ball.r > w - padX) {
-        ball.x = w - padX - ball.r;
-        ball.vx = -Math.abs(ball.vx) * 0.78 - Math.random() * 24 * dpr;
-      }
+      for (let bi = balls.length - 1; bi >= 0; bi--) {
+        const ball = balls[bi];
+        ball.vy += (ball.inSlot ? g * 0.55 : g) * dt;
 
-      // Peg collisions
-      const restitution = 0.76;
-      for (let i = 0; i < pegs.length; i++) {
-        const p = pegs[i];
-        const dx = ball.x - p.x;
-        const dy = ball.y - p.y;
-        const rr = ball.r + p.r;
-        const d2 = dx * dx + dy * dy;
-        if (d2 <= rr * rr) {
-          const d = Math.sqrt(Math.max(0.0001, d2));
-          const nx = dx / d;
-          const ny = dy / d;
-          const pen = rr - d;
-          ball.x += nx * pen;
-          ball.y += ny * pen;
+        ball.x += ball.vx * dt;
+        ball.y += ball.vy * dt;
 
-          const vdot = ball.vx * nx + ball.vy * ny;
-          if (vdot < 0) {
-            ball.vx -= (1 + restitution) * vdot * nx;
-            ball.vy -= (1 + restitution) * vdot * ny;
+        // Outer walls
+        if (ball.x - ball.r < padX) {
+          ball.x = padX + ball.r;
+          ball.vx = Math.abs(ball.vx) * 0.72;
+        }
+        if (ball.x + ball.r > w - padX) {
+          ball.x = w - padX - ball.r;
+          ball.vx = -Math.abs(ball.vx) * 0.72;
+        }
+
+        // Peg collisions (skip when deep in slot area)
+        if (!ball.inSlot) {
+          const restitution = 0.78;
+          for (let i = 0; i < pegs.length; i++) {
+            const p = pegs[i];
+            const dx = ball.x - p.x;
+            const dy = ball.y - p.y;
+            const rr = ball.r + p.r;
+            const d2 = dx * dx + dy * dy;
+            if (d2 <= rr * rr) {
+              const d = Math.sqrt(Math.max(0.0001, d2));
+              const nx = dx / d;
+              const ny = dy / d;
+              const pen = rr - d;
+              ball.x += nx * pen;
+              ball.y += ny * pen;
+
+              const vdot = ball.vx * nx + ball.vy * ny;
+              if (vdot < 0) {
+                ball.vx -= (1 + restitution) * vdot * nx;
+                ball.vy -= (1 + restitution) * vdot * ny;
+              }
+
+              // Slight chaos (smaller so it doesn't "hunt" edges)
+              ball.vx += (Math.random() - 0.5) * 42 * dpr;
+              ball.vy += (Math.random() - 0.5) * 12 * dpr;
+            }
+          }
+        }
+
+        // Damping (more horizontal damping)
+        ball.vx *= ball.inSlot ? 0.985 : 0.992;
+        ball.vy *= ball.inSlot ? 0.992 : 0.996;
+
+        // Enter slot zone
+        if (!ball.inSlot && ball.y + ball.r >= slotTop) {
+          ball.inSlot = true;
+          ball.enterAt = performance.now();
+          ball.slotIdx = clamp(Math.floor((ball.x - padX) / slotW), 0, slotsCount - 1);
+          // Nudge slightly inside slot
+          ball.y = slotTop - ball.r;
+          ball.vy *= 0.55;
+        }
+
+        // Slot settling physics
+        if (ball.inSlot) {
+          // Keep within current slot boundaries; allow moving to neighbor slots.
+          let left = padX + ball.slotIdx * slotW;
+          let right = left + slotW;
+
+          if (ball.x - ball.r < left) {
+            ball.x = left + ball.r;
+            ball.vx = Math.abs(ball.vx) * 0.55;
+            if (ball.slotIdx > 0) ball.slotIdx--;
+          }
+          if (ball.x + ball.r > right) {
+            ball.x = right - ball.r;
+            ball.vx = -Math.abs(ball.vx) * 0.55;
+            if (ball.slotIdx < slotsCount - 1) ball.slotIdx++;
           }
 
-          // Chaos: tiny random push each bounce
-          ball.vx += (Math.random() - 0.5) * 110 * dpr;
-          ball.vy += (Math.random() - 0.5) * 28 * dpr;
+          // Floor
+          if (ball.y + ball.r > slotBottom) {
+            ball.y = slotBottom - ball.r;
+            ball.vy = -Math.abs(ball.vy) * 0.35;
+            ball.vx *= 0.75;
+            ball.settle += 1;
+          }
+
+          // Finish when mostly settled or after timeout in slot zone
+          const tooLong = performance.now() - ball.enterAt > 900;
+          const slow = Math.abs(ball.vy) < 40 * dpr && Math.abs(ball.vx) < 35 * dpr;
+          if (ball.settle >= 2 && slow) {
+            balls.splice(bi, 1);
+            finishBall(ball, clamp(ball.slotIdx, 0, slotsCount - 1));
+          } else if (tooLong) {
+            balls.splice(bi, 1);
+            finishBall(ball, clamp(ball.slotIdx, 0, slotsCount - 1));
+          }
+        }
+
+        // Safety: fell out
+        if (ball.y - ball.r > h + 220 * dpr) {
+          balls.splice(bi, 1);
+          const idx = clamp(Math.floor((ball.x - padX) / slotW), 0, slotsCount - 1);
+          finishBall(ball, idx);
         }
       }
 
-      // Damping
-      ball.vx *= 0.996;
-      ball.vy *= 0.998;
-
-      // Land in slot
-      if (ball.y + ball.r >= slotTop) {
-        const slotW = (w - padX * 2) / slotsCount;
-        const idx = clamp(Math.floor((ball.x - padX) / slotW), 0, slotsCount - 1);
-        finish(idx);
-      }
-      // Safety
-      if (ball.y - ball.r > h + 200 * dpr) {
-        const slotW = (w - padX * 2) / slotsCount;
-        const idx = clamp(Math.floor((ball.x - padX) / slotW), 0, slotsCount - 1);
-        finish(idx);
-      }
+      if (balls.length) setStatus(`Running (${balls.length})`, "run");
+      else setStatus("Waiting", "");
     }
 
     function slotColor(m) {
@@ -495,28 +533,30 @@
       }
       ctx.restore();
 
-      // Ball: red glowing
-      if (ball) {
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(255, 40, 70, 0.98)";
-        ctx.shadowColor = "rgba(255, 40, 70, 0.55)";
-        ctx.shadowBlur = 26 * dpr;
-        ctx.fill();
-        ctx.shadowBlur = 0;
-        ctx.strokeStyle = "rgba(255,255,255,0.12)";
-        ctx.lineWidth = 2 * dpr;
-        ctx.stroke();
-        ctx.restore();
+      // Balls: red glowing
+      if (balls.length) {
+        for (const ball of balls) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(255, 40, 70, 0.98)";
+          ctx.shadowColor = "rgba(255, 40, 70, 0.55)";
+          ctx.shadowBlur = 24 * dpr;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = "rgba(255,255,255,0.12)";
+          ctx.lineWidth = 2 * dpr;
+          ctx.stroke();
+          ctx.restore();
+        }
       }
 
       // Slots + labels
       ctx.save();
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      const labelSize = Math.max(10 * dpr, Math.min(16 * dpr, slotRects[0]?.w * 0.22));
-      ctx.font = `${Math.floor(labelSize)}px ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace`;
+      const labelSize = Math.max(11 * dpr, Math.min(18 * dpr, slotRects[0]?.w * 0.24));
+      ctx.font = `1000 ${Math.floor(labelSize)}px "Space Grotesk", system-ui, -apple-system, Segoe UI, Roboto, Arial`;
       for (let i = 0; i < slotRects.length; i++) {
         const r = slotRects[i];
         const m = Number(multipliers[i] ?? 0);
@@ -535,9 +575,13 @@
         ctx.lineWidth = 2 * dpr;
         ctx.stroke();
 
-        // Text
-        ctx.fillStyle = "rgba(0,0,0,0.88)";
-        ctx.fillText(`x${m >= 10 ? m.toFixed(0) : m.toFixed(1)}`, r.x + r.w / 2, r.y + r.h / 2);
+        // Text (cleaner + subtle outline)
+        const txt = `x${m >= 10 ? m.toFixed(0) : m.toFixed(1)}`;
+        ctx.lineWidth = 4 * dpr;
+        ctx.strokeStyle = "rgba(0,0,0,0.38)";
+        ctx.strokeText(txt, r.x + r.w / 2, r.y + r.h / 2);
+        ctx.fillStyle = "rgba(255,255,255,0.94)";
+        ctx.fillText(txt, r.x + r.w / 2, r.y + r.h / 2);
       }
       ctx.restore();
     }
@@ -604,4 +648,3 @@
     init();
   }
 })();
-
