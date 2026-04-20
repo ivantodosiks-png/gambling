@@ -275,6 +275,12 @@
           btn.disabled = false;
 
           if (error) return setStatus(`Update error: ${error.message}`, "err");
+
+          // Keep localStorage in sync for the same browser (site.js uses localStorage as source of truth).
+          try {
+            localStorage.setItem(`casino_balance_v1:${id}`, String(Math.max(0, Math.floor(balance))));
+          } catch {}
+
           setStatus("Saved", "ok");
           const idx = all.findIndex((x) => x.id === id);
           if (idx >= 0) all[idx].balance = balance;

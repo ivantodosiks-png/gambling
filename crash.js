@@ -56,15 +56,15 @@
     const u = randomFloat01();
     const v = () => randomFloat01();
 
-    // More generous odds (more >2x), but still with early crashes.
-    // 30%: early crashes (1.05x..1.70x), biased low.
-    if (u < 0.30) return r2(1.05 + Math.pow(v(), 1.7) * (1.70 - 1.05));
+    // Less generous odds: early crashes are common, big multipliers are rarer.
+    // 52%: early crashes (1.05x..1.60x), biased low.
+    if (u < 0.52) return r2(1.05 + Math.pow(v(), 1.85) * (1.60 - 1.05));
 
-    // 50%: mid crashes (1.70x..3.80x), slightly biased low.
-    if (u < 0.80) return r2(1.70 + Math.pow(v(), 1.15) * (3.80 - 1.70));
+    // 38%: mid crashes (1.60x..3.00x), still biased low.
+    if (u < 0.90) return r2(1.60 + Math.pow(v(), 1.45) * (3.00 - 1.60));
 
-    // 20%: high crashes (3.80x..10.00x), biased high.
-    return r2(3.80 + Math.pow(v(), 0.75) * (10.00 - 3.80));
+    // 10%: high crashes (3.00x..10.00x), biased high.
+    return r2(3.00 + Math.pow(v(), 0.70) * (10.00 - 3.00));
   }
 
   function injectStylesOnce() {
