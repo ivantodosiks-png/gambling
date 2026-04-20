@@ -46,6 +46,8 @@
       .pill { display: inline-block; padding: 4px 8px; border: 1px solid rgba(255,255,255,0.14); border-radius: 999px; font-size: 12px; background: rgba(255,255,255,0.04); }
       .err { color: #ff3b3b; }
       .ok { color: #00ff88; }
+      .settings-panel { overflow: hidden; max-height: 0; opacity: 0; transition: max-height 240ms ease, opacity 180ms ease; }
+      .settings-panel.open { max-height: 520px; opacity: 1; }
     </style>
   </head>
   <body>
@@ -75,40 +77,48 @@
         </div>
 
         <div style="margin-top:14px; border-top: 1px solid rgba(255,255,255,0.10); padding-top: 14px;">
-          <div class="row" style="align-items:flex-end;">
-            <div style="flex:1 1 auto;">
-              <div class="muted" style="font-weight:700; color: rgba(233,237,247,0.85);">Maintenance mode</div>
-              <div class="muted">Blocks the game for everyone except admins.</div>
+          <div class="row" style="align-items:center;">
+            <div class="muted" style="font-weight:700; color: rgba(233,237,247,0.85);">Site controls</div>
+            <button id="settingsToggle" class="secondary" type="button" style="padding:8px 12px;">Settings</button>
+          </div>
+          <div id="settingsPanel" class="settings-panel" style="margin-top:12px;">
+            <div style="border-top: 1px solid rgba(255,255,255,0.10); padding-top: 14px;">
+              <div class="row" style="align-items:flex-end;">
+                <div style="flex:1 1 auto;">
+                  <div class="muted" style="font-weight:700; color: rgba(233,237,247,0.85);">Maintenance mode</div>
+                  <div class="muted">Blocks the game for everyone except admins.</div>
+                </div>
+                <label class="pill" style="display:flex; gap:10px; align-items:center;">
+                  <input id="maintEnabled" type="checkbox" style="width:auto; margin:0;" />
+                  Enabled
+                </label>
+              </div>
+              <div style="margin-top:10px;">
+                <input id="maintMessage" placeholder="Message shown to users (e.g. Technical works)..." />
+              </div>
+              <div class="row" style="justify-content:flex-start; margin-top:10px;">
+                <button id="maintSaveBtn" class="secondary" type="button">Save maintenance</button>
+              </div>
             </div>
-            <label class="pill" style="display:flex; gap:10px; align-items:center;">
-              <input id="maintEnabled" type="checkbox" style="width:auto; margin:0;" />
-              Enabled
-            </label>
-          </div>
-          <div style="margin-top:10px;">
-            <input id="maintMessage" placeholder="Message shown to users (e.g. Technical works)..." />
-          </div>
-          <div class="row" style="justify-content:flex-start; margin-top:10px;">
-            <button id="maintSaveBtn" class="secondary" type="button">Save maintenance</button>
-          </div>
-        </div>
 
-        <div style="margin-top:14px; border-top: 1px solid rgba(255,255,255,0.10); padding-top: 14px;">
-          <div class="row" style="align-items:flex-end;">
-            <div style="flex:1 1 auto;">
-              <div class="muted" style="font-weight:700; color: rgba(233,237,247,0.85);">Blackjack lock</div>
-              <div class="muted">Blocks only the Blackjack tab for everyone except admins.</div>
+            <div style="margin-top:14px; border-top: 1px solid rgba(255,255,255,0.10); padding-top: 14px;">
+              <div class="row" style="align-items:flex-end;">
+                <div style="flex:1 1 auto;">
+                  <div class="muted" style="font-weight:700; color: rgba(233,237,247,0.85);">Blackjack lock</div>
+                  <div class="muted">Blocks only the Blackjack tab for everyone except admins.</div>
+                </div>
+                <label class="pill" style="display:flex; gap:10px; align-items:center;">
+                  <input id="bjLockEnabled" type="checkbox" style="width:auto; margin:0;" />
+                  Enabled
+                </label>
+              </div>
+              <div style="margin-top:10px;">
+                <input id="bjLockMessage" placeholder="Optional message for users..." />
+              </div>
+              <div class="row" style="justify-content:flex-start; margin-top:10px;">
+                <button id="bjLockSaveBtn" class="secondary" type="button">Save blackjack lock</button>
+              </div>
             </div>
-            <label class="pill" style="display:flex; gap:10px; align-items:center;">
-              <input id="bjLockEnabled" type="checkbox" style="width:auto; margin:0;" />
-              Enabled
-            </label>
-          </div>
-          <div style="margin-top:10px;">
-            <input id="bjLockMessage" placeholder="Optional message for users..." />
-          </div>
-          <div class="row" style="justify-content:flex-start; margin-top:10px;">
-            <button id="bjLockSaveBtn" class="secondary" type="button">Save blackjack lock</button>
           </div>
         </div>
       </div>
@@ -159,6 +169,12 @@
         const bjLockEnabledEl = document.getElementById("bjLockEnabled");
         const bjLockMessageEl = document.getElementById("bjLockMessage");
         const bjLockSaveBtn = document.getElementById("bjLockSaveBtn");
+        const settingsToggle = document.getElementById("settingsToggle");
+        const settingsPanel = document.getElementById("settingsPanel");
+
+        settingsToggle?.addEventListener("click", () => {
+          settingsPanel?.classList.toggle("open");
+        });
 
         function setStatus(text, kind = "muted") {
           statusEl.textContent = text;

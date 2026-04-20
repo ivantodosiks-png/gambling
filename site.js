@@ -1023,12 +1023,20 @@ By clicking Accept, you confirm you understand this.
 
     setUserId(STATE.user.id);
 
-    // Hydrate from localStorage for instant paint, but DO NOT push it to Supabase on boot
-    // (otherwise it can overwrite admin edits made in Supabase).
-    setBalance(await loadBalance(STATE.user.id), { persistRemote: false, persistLocal: true });
-    // If the admin panel (or another device) changed balance in Supabase, adopt it and update localStorage.
-    await syncBalanceFromSupabase(STATE.user.id, { force: true });
-    setInterval(() => syncBalanceFromSupabase(STATE.user.id), 5000);
+    // Hydrate from localStorage for instant paint, but DO NOT push it to Supabase on boot.
+    // Important: avoid immediately overriding localStorage with a stale Supabase value.
+    const localBal = loadBalanceFromLocalStorage(STATE.user.id);
+    const hasLocal = typeof localBal === "number";
+    if (hasLocal) {
+      setBalance(localBal, { persistRemote: false, persistLocal: true });
+    } else {
+      setBalance(await loadBalance(STATE.user.id), { persistRemote: false, persistLocal: true });
+      // If there was no local value, try adopting Supabase once on boot.
+      await syncBalanceFromSupabase(STATE.user.id, { force: true });
+    }
+    // Poll Supabase only when local storage is missing (local is the primary persistence layer).
+    // Admin panel updates in the same browser propagate via localStorage + storage event.
+    if (!hasLocal) setInterval(() => syncBalanceFromSupabase(STATE.user.id), 5000);
 
     // If balance is changed in another tab (e.g. Admin panel), adopt it immediately.
     window.addEventListener("storage", (e) => {
