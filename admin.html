@@ -68,6 +68,25 @@
             <button id="maintSaveBtn" class="secondary" type="button">Save maintenance</button>
           </div>
         </div>
+
+        <div style="margin-top:14px; border-top: 1px solid rgba(255,255,255,0.10); padding-top: 14px;">
+          <div class="row" style="align-items:flex-end;">
+            <div style="flex:1 1 auto;">
+              <div class="muted" style="font-weight:700; color: rgba(233,237,247,0.85);">Blackjack lock</div>
+              <div class="muted">Blocks only the Blackjack tab for everyone except admins.</div>
+            </div>
+            <label class="pill" style="display:flex; gap:10px; align-items:center;">
+              <input id="bjLockEnabled" type="checkbox" style="width:auto; margin:0;" />
+              Enabled
+            </label>
+          </div>
+          <div style="margin-top:10px;">
+            <input id="bjLockMessage" placeholder="Optional message for users..." />
+          </div>
+          <div class="row" style="justify-content:flex-start; margin-top:10px;">
+            <button id="bjLockSaveBtn" class="secondary" type="button">Save blackjack lock</button>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -113,6 +132,9 @@
         const maintEnabledEl = document.getElementById("maintEnabled");
         const maintMessageEl = document.getElementById("maintMessage");
         const maintSaveBtn = document.getElementById("maintSaveBtn");
+        const bjLockEnabledEl = document.getElementById("bjLockEnabled");
+        const bjLockMessageEl = document.getElementById("bjLockMessage");
+        const bjLockSaveBtn = document.getElementById("bjLockSaveBtn");
 
         function setStatus(text, kind = "muted") {
           statusEl.textContent = text;
@@ -156,6 +178,26 @@
           maintSaveBtn.disabled = false;
           if (error) return setStatus(`Maintenance save error: ${error.message}`, "err");
           setStatus(value.enabled ? "Maintenance enabled" : "Maintenance disabled", "ok");
+        }
+
+        async function loadBlackjackLock() {
+          const { data, error } = await sb.from("app_settings").select("value").eq("key", "blackjack_lock").maybeSingle();
+          if (error) {
+            setStatus(`Blackjack lock load error: ${error.message}`, "err");
+            return;
+          }
+          const v = data?.value || {};
+          bjLockEnabledEl.checked = Boolean(v.enabled);
+          bjLockMessageEl.value = String(v.message || "");
+        }
+
+        async function saveBlackjackLock() {
+          bjLockSaveBtn.disabled = true;
+          const value = { enabled: Boolean(bjLockEnabledEl.checked), message: String(bjLockMessageEl.value || "") };
+          const { error } = await sb.from("app_settings").upsert({ key: "blackjack_lock", value }, { onConflict: "key" });
+          bjLockSaveBtn.disabled = false;
+          if (error) return setStatus(`Blackjack lock save error: ${error.message}`, "err");
+          setStatus(value.enabled ? "Blackjack locked" : "Blackjack unlocked", "ok");
         }
 
         let all = [];
@@ -241,12 +283,14 @@
         searchEl.addEventListener("input", render);
         refreshBtn.addEventListener("click", load);
         maintSaveBtn.addEventListener("click", saveMaintenance);
+        bjLockSaveBtn.addEventListener("click", saveBlackjackLock);
         logoutBtn.addEventListener("click", async () => {
           await sb.auth.signOut();
           window.location.href = "./index.html";
         });
 
         await loadMaintenance();
+        await loadBlackjackLock();
         await load();
       })();
     </script>

@@ -1248,6 +1248,65 @@ const BJ = (() => {
     showLobby(true);
   };
 
+  const readBlackjackLock = async () => {
+    try {
+      const { data, error } = await window.sb.from('app_settings').select('value').eq('key', 'blackjack_lock').maybeSingle();
+      if (error) throw error;
+      const v = data?.value || {};
+      return { enabled: Boolean(v.enabled), message: String(v.message || '') };
+    } catch {
+      return { enabled: false, message: '' };
+    }
+  };
+
+  const isAdminUser = async () => {
+    try {
+      const { data: session } = await window.sb.auth.getSession();
+      if (!session?.session) return false;
+      const { data } = await window.sb.rpc('is_admin');
+      return Boolean(data);
+    } catch {
+      return false;
+    }
+  };
+
+  const showBlackjackBlocked = (message) => {
+    const container = document.getElementById('bjContainer');
+    if (!container) return;
+
+    const existing = document.getElementById('bjBlocked');
+    if (existing) existing.remove();
+
+    const el = document.createElement('div');
+    el.id = 'bjBlocked';
+    el.style.display = 'grid';
+    el.style.placeItems = 'center';
+    el.style.padding = '24px';
+    el.innerHTML = `
+      <div style="width:min(720px,100%); border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.06); border-radius:18px; padding:18px; text-align:center;">
+        <div style="font-weight:1000; font-size:18px; margin-bottom:6px;">Вы не админ</div>
+        <div style="color:rgba(233,237,247,0.72); font-size:13px;">Blackjack временно закрыт. Админ откроет его в админ-панели.</div>
+        <div style="margin-top:12px; white-space:pre-wrap;">${String(message || '').replace(/</g, '&lt;')}</div>
+        <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:14px;">
+          <button id="bjBlockedRefresh" class="primary-wide" type="button">Обновить</button>
+          <button id="bjBlockedBack" class="ghost" type="button">Назад</button>
+        </div>
+      </div>
+    `;
+
+    const lobby = document.getElementById('bjLobby');
+    const waiting = document.getElementById('bjWaitingRoom');
+    const table = document.getElementById('bjTable');
+    if (lobby) lobby.style.display = 'none';
+    if (waiting) waiting.style.display = 'none';
+    if (table) table.style.display = 'none';
+
+    container.prepend(el);
+
+    document.getElementById('bjBlockedRefresh')?.addEventListener('click', () => window.location.reload());
+    document.getElementById('bjBlockedBack')?.addEventListener('click', () => window.history.back());
+  };
+
   // ============ INITIALIZATION ============
   const init = async () => {
     console.log('🎰 ============ ИНИЦИАЛИЗАЦИЯ BLACKJACK ============');
@@ -1258,6 +1317,16 @@ const BJ = (() => {
       console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: sb не инициализирован! Проверьте supabase-config.js');
       showMessage('bjLobbyMsg', 'Ошибка: Supabase не инициализирован', 'error');
       return;
+    }
+
+    // Optional: lock Blackjack for non-admins via Admin panel (app_settings.key='blackjack_lock').
+    const lock = await readBlackjackLock();
+    if (lock.enabled) {
+      const ok = await isAdminUser();
+      if (!ok) {
+        showBlackjackBlocked(lock.message || '');
+        return;
+      }
     }
     
     document.getElementById('bjCreateRoomBtn')?.addEventListener('click', createRoom);
