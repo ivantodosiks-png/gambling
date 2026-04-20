@@ -33,6 +33,8 @@
     balance: 5000,
     // Prevent remote sync from overwriting local updates that haven't been persisted yet.
     balanceDirtyUntil: 0,
+    // Tracks last known remote balance to detect admin/remote changes without overriding local progress.
+    lastRemoteBalance: null,
     betAmount: 100,
     roulette: {
       spinning: false,
@@ -209,7 +211,8 @@
       const sb = window.sb;
       if (!sb || !STATE.user) return;
       try {
-        await sb.from("profiles").update({ balance: STATE.balance }).eq("id", STATE.user.id);
+        const { error } = await sb.from("profiles").update({ balance: STATE.balance }).eq("id", STATE.user.id);
+        if (!error) STATE.lastRemoteBalance = STATE.balance;
       } catch {
         // ignore
       }
@@ -256,9 +259,20 @@
     const remote = await fetchBalanceFromSupabase(userId);
     if (typeof remote !== "number") return;
 
-    if (remote !== STATE.balance) {
-      STATE.balanceDirtyUntil = 0;
-      setBalance(remote, { persistRemote: false, persistLocal: true });
+    // Initialize baseline on first successful fetch.
+    if (typeof STATE.lastRemoteBalance !== "number") {
+      STATE.lastRemoteBalance = remote;
+      return;
+    }
+
+    // Only adopt remote if it actually changed since last time (admin/other device).
+    // This prevents overwriting localStorage-based balance with a stale remote value.
+    if (remote !== STATE.lastRemoteBalance) {
+      STATE.lastRemoteBalance = remote;
+      if (remote !== STATE.balance) {
+        STATE.balanceDirtyUntil = 0;
+        setBalance(remote, { persistRemote: false, persistLocal: true });
+      }
     }
   }
 
@@ -1032,6 +1046,7 @@ By clicking Accept, you confirm you understand this.
       setBalance(await loadBalance(STATE.user.id), { persistRemote: false, persistLocal: true });
     }
     // Always adopt remote value (admin panel / other devices) and keep localStorage in sync.
+    // First fetch sets baseline `lastRemoteBalance` without overwriting local progress.
     await syncBalanceFromSupabase(STATE.user.id, { force: true });
     setInterval(() => syncBalanceFromSupabase(STATE.user.id), 5000);
 
