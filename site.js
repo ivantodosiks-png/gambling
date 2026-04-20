@@ -31,6 +31,8 @@
   const STATE = {
     user: null,
     balance: 5000,
+    // Prevent remote sync from overwriting local updates that haven't been persisted yet.
+    balanceDirtyUntil: 0,
     betAmount: 100,
     roulette: {
       spinning: false,
@@ -223,12 +225,41 @@
     }
   }
 
-  function setBalance(next) {
+  function setBalance(next, { persistRemote = true, persistLocal = true } = {}) {
     const n = Math.max(0, Math.floor(Number(next) || 0));
     STATE.balance = n;
+    // Only mark as "dirty" when this change should be pushed to Supabase.
+    STATE.balanceDirtyUntil = persistRemote ? Date.now() + 1200 : 0;
     qs("balanceValue").textContent = fmt(n);
-    if (STATE.user?.id) persistBalanceToLocalStorage(STATE.user.id, n);
-    persistBalanceDebounced();
+    if (persistLocal && STATE.user?.id) persistBalanceToLocalStorage(STATE.user.id, n);
+    if (persistRemote) persistBalanceDebounced();
+  }
+
+  async function fetchBalanceFromSupabase(userId) {
+    const sb = window.sb;
+    if (!sb || !userId) return null;
+    try {
+      const { data: profile, error } = await sb.from("profiles").select("balance").eq("id", userId).maybeSingle();
+      if (error) throw error;
+      const bal = Number(profile?.balance);
+      if (!Number.isFinite(bal) || bal < 0) return null;
+      return Math.floor(bal);
+    } catch {
+      return null;
+    }
+  }
+
+  async function syncBalanceFromSupabase(userId, { force } = {}) {
+    if (!userId) return;
+    if (!force && Date.now() < (STATE.balanceDirtyUntil || 0)) return;
+
+    const remote = await fetchBalanceFromSupabase(userId);
+    if (typeof remote !== "number") return;
+
+    if (remote !== STATE.balance) {
+      STATE.balanceDirtyUntil = 0;
+      setBalance(remote, { persistRemote: false, persistLocal: true });
+    }
   }
 
   // Expose minimal balance API for mini-games (e.g. Crash modal).
@@ -992,7 +1023,26 @@ By clicking Accept, you confirm you understand this.
 
     setUserId(STATE.user.id);
 
-    setBalance(await loadBalance(STATE.user.id));
+    // Hydrate from localStorage for instant paint, but DO NOT push it to Supabase on boot
+    // (otherwise it can overwrite admin edits made in Supabase).
+    setBalance(await loadBalance(STATE.user.id), { persistRemote: false, persistLocal: true });
+    // If the admin panel (or another device) changed balance in Supabase, adopt it and update localStorage.
+    await syncBalanceFromSupabase(STATE.user.id, { force: true });
+    setInterval(() => syncBalanceFromSupabase(STATE.user.id), 5000);
+
+    // If balance is changed in another tab (e.g. Admin panel), adopt it immediately.
+    window.addEventListener("storage", (e) => {
+      try {
+        if (!STATE.user?.id) return;
+        if (e.key !== balanceStorageKey(STATE.user.id)) return;
+        const n = Number(e.newValue);
+        if (!Number.isFinite(n) || n < 0) return;
+        if (Math.floor(n) === STATE.balance) return;
+        setBalance(Math.floor(n), { persistRemote: false, persistLocal: true });
+      } catch {
+        // ignore
+      }
+    });
 
     // Top buttons
     qs("logoutBtn").addEventListener("click", async () => {
