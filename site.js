@@ -979,6 +979,7 @@ By clicking Accept, you confirm you understand this.
     qs("tab_rouletteView").addEventListener("click", () => switchView("rouletteView"));
     qs("tab_minesView").addEventListener("click", () => switchView("minesView"));
     qs("tab_blackjackView").addEventListener("click", () => switchView("blackjackView"));
+    qs("tab_crashView")?.addEventListener("click", () => switchView("crashView"));
     switchView("rouletteView");
 
     // Roulette UI

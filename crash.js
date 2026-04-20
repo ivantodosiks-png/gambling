@@ -278,82 +278,86 @@
     document.head.appendChild(s);
   }
 
-  function ensureModal() {
+  function ensureView() {
     injectStylesOnce();
-    if (document.getElementById("crash-overlay")) return;
+    const host = document.getElementById("crashMount");
+    if (!host) return false;
+    if (host.getAttribute("data-crash-ready") === "1") return true;
 
-    const overlay = document.createElement("div");
-    overlay.id = "crash-overlay";
-    overlay.className = "crash-overlay";
-    overlay.innerHTML = `
-      <div class="crash-modal" role="dialog" aria-modal="true" aria-label="Crash game">
-        <div class="crash-head">
+    host.setAttribute("data-crash-ready", "1");
+    host.innerHTML = `
+      <div class="crash-body" style="padding: 0;">
+        <div class="crash-toprow">
           <div class="crash-title">Crash</div>
-          <button class="crash-close" id="crash-close" type="button" aria-label="Close">X</button>
+          <div class="crash-pill">Balance: <span id="crash-balance">0</span></div>
+          <div class="crash-pill">Status: <span id="crash-status">Waiting</span></div>
         </div>
-        <div class="crash-body">
-          <div class="crash-toprow">
-            <div class="crash-pill">Balance: <span id="crash-balance">1000</span></div>
-            <div class="crash-pill">Status: <span id="crash-status">Waiting</span></div>
-          </div>
-          <div class="crash-grid">
-            <div class="crash-stage" id="crash-stage">
-              <div class="crash-chart" aria-hidden="true">
-                <svg viewBox="0 0 520 300" preserveAspectRatio="none">
-                  <defs>
-                    <marker id="crash-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"></path>
-                    </marker>
-                  </defs>
-                  <path id="crash-path" class="crash-path" d="M 26 248 C 120 212 188 172 260 132 C 330 92 400 62 494 40" marker-end="url(#crash-arrow)"></path>
-                  <circle id="crash-dot" class="crash-dot" cx="26" cy="248" r="6"></circle>
-                </svg>
+        <div class="crash-grid" style="margin-top: 12px;">
+          <div class="crash-stage" id="crash-stage">
+            <div class="crash-chart" aria-hidden="true">
+              <svg viewBox="0 0 520 300" preserveAspectRatio="none">
+                <defs>
+                  <marker id="crash-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"></path>
+                  </marker>
+                </defs>
+                <path id="crash-path" class="crash-path" d="M 26 248 C 120 212 188 172 260 132 C 330 92 400 62 494 40" marker-end="url(#crash-arrow)"></path>
+                <circle id="crash-dot" class="crash-dot" cx="26" cy="248" r="6"></circle>
+              </svg>
+            </div>
+            <div class="crash-mult" id="crash-mult">1.00x</div>
+            <div class="crash-hud" aria-hidden="true">
+              <div class="crash-hud-card">
+                <div class="crash-hud-label">Potential cashout</div>
+                <div class="crash-hud-value" id="crash-payout">—</div>
+                <div class="crash-hud-sub" id="crash-payout-sub">—</div>
               </div>
-              <div class="crash-mult" id="crash-mult">1.00x</div>
-              <div class="crash-hud" aria-hidden="true">
-                <div class="crash-hud-card">
-                  <div class="crash-hud-label">Potential cashout</div>
-                  <div class="crash-hud-value" id="crash-payout">—</div>
-                  <div class="crash-hud-sub" id="crash-payout-sub">—</div>
-                </div>
-                <div class="crash-hud-card" style="text-align:right;">
-                  <div class="crash-hud-label">Bet</div>
-                  <div class="crash-hud-value" id="crash-bet-view">0</div>
-                  <div class="crash-hud-sub">Coins</div>
-                </div>
+              <div class="crash-hud-card" style="text-align:right;">
+                <div class="crash-hud-label">Bet</div>
+                <div class="crash-hud-value" id="crash-bet-view">0</div>
+                <div class="crash-hud-sub">Coins</div>
               </div>
             </div>
-            <div class="crash-side">
-              <div class="crash-row">
-                <div class="crash-label">Bet</div>
-                <input class="crash-input" id="crash-bet" type="number" min="1" step="1" value="50" />
-              </div>
-              <div class="crash-actions">
-                <button class="crash-btn" id="crash-start" type="button">Start Round</button>
-                <button class="crash-btn crash-secondary" id="crash-cashout" type="button" disabled>Cashout</button>
-              </div>
-              <div class="crash-status" id="crash-note"></div>
-              <div class="crash-row" style="margin-top:4px;">
-                <div class="crash-label">History (last 5)</div>
-                <div class="crash-hist" id="crash-hist"></div>
-              </div>
+          </div>
+          <div class="crash-side">
+            <div class="crash-row">
+              <div class="crash-label">Bet</div>
+              <input class="crash-input" id="crash-bet" type="number" min="1" step="1" value="50" />
+            </div>
+            <div class="crash-actions">
+              <button class="crash-btn" id="crash-start" type="button">Start Round</button>
+              <button class="crash-btn crash-secondary" id="crash-cashout" type="button" disabled>Cashout</button>
+            </div>
+            <div class="crash-status" id="crash-note"></div>
+            <div class="crash-row" style="margin-top:4px;">
+              <div class="crash-label">History (last 5)</div>
+              <div class="crash-hist" id="crash-hist"></div>
             </div>
           </div>
         </div>
       </div>
     `;
-    document.body.appendChild(overlay);
 
-    overlay.addEventListener("click", (e) => {
-      // Click outside closes.
-      if (e.target === overlay) close();
-    });
-    document.getElementById("crash-close")?.addEventListener("click", close);
     document.getElementById("crash-start")?.addEventListener("click", onStart);
     document.getElementById("crash-cashout")?.addEventListener("click", onCashout);
-    document.addEventListener("keydown", (e) => {
-      if (state.open && e.key === "Escape") close();
+
+    // Prevent mouse wheel from changing number input.
+    const betInput = document.getElementById("crash-bet");
+    betInput?.addEventListener(
+      "wheel",
+      (e) => {
+        if (document.activeElement === betInput) e.preventDefault();
+      },
+      { passive: false },
+    );
+
+    // When switching to Crash tab, refresh UI from global balance.
+    document.getElementById("tab_crashView")?.addEventListener("click", () => {
+      setBalance(getBalance());
+      updatePayoutUI();
     });
+
+    return true;
   }
 
   function qs(id) {
@@ -443,14 +447,13 @@
     const dot = qs("crash-dot");
     if (!path || !dot) return;
 
-    const cp = Number(state.crashPoint) || 0;
     const m = Math.max(1, Number(state.multiplier) || 1);
 
-    // progress uses crashPoint internally (not shown) to make the arrow feel like it accelerates.
+    // progress does NOT use the crash point (so the user can't "see" when it will crash).
     let progress = 0;
     if (state.phase === "waiting") progress = 0.06;
-    else if (state.phase === "running" && cp > 1) progress = Math.log(m) / Math.log(cp);
-    else if (state.phase === "ended") progress = 1;
+    else if (state.phase === "running") progress = Math.log(m) / Math.log(10);
+    else if (state.phase === "ended") progress = Math.log(Math.max(1, state.multiplier)) / Math.log(10);
 
     progress = clamp(progress, 0, 1);
     const len = state.chartLen * progress;
@@ -522,6 +525,7 @@
 
   function onStart() {
     if (state.phase === "waiting" || state.phase === "running") return;
+    if (!ensureView()) return;
 
     const bet = Math.floor(Number(qs("crash-bet")?.value || 0));
     if (!Number.isFinite(bet) || bet <= 0) return setNote("Enter a valid bet amount");
@@ -562,6 +566,7 @@
 
   function onCashout() {
     if (state.phase !== "waiting" && state.phase !== "running") return;
+    if (!ensureView()) return;
 
     const mult = state.phase === "waiting" ? 1 : state.multiplier;
     state.multiplier = Math.max(1, mult);
@@ -571,8 +576,8 @@
     endRound("cashed", `Cashed out at ${fmt2(state.multiplier)}x`);
   }
 
-  function open() {
-    ensureModal();
+  function init() {
+    if (!ensureView()) return;
     loadPersisted();
     renderHistory();
 
@@ -588,25 +593,8 @@
     const apiReady = window.casinoBalance && typeof window.casinoBalance.get === "function" && typeof window.casinoBalance.set === "function";
     if (!apiReady) setNote("Balance system is not ready yet. Please refresh.");
     setControls({ startDisabled: !apiReady, cashoutDisabled: true, betDisabled: !apiReady });
-
-    const overlay = qs("crash-overlay");
-    if (overlay) overlay.classList.add("crash-open");
-    state.open = true;
-  }
-
-  function close() {
-    const overlay = qs("crash-overlay");
-    if (overlay) overlay.classList.remove("crash-open");
-    state.open = false;
-  }
-
-  function init() {
-    const btn = document.getElementById("tab_crash");
-    if (!btn) return;
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      open();
-    });
+    updatePayoutUI();
+    updateChartUI();
   }
 
   if (document.readyState === "loading") {
