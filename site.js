@@ -34,6 +34,8 @@
     // Prevent remote sync from overwriting local updates that haven't been persisted yet.
     balanceDirtyUntil: 0,
     betAmount: 100,
+    // Simple remote override guard to prevent unwanted reset to default when remote is stale.
+    hasLocalBalanceAtBoot: false,
     roulette: {
       spinning: false,
       wheelDeg: 0,
@@ -257,10 +259,63 @@
     if (typeof remote !== "number") return;
 
     // Supabase is the source of truth across devices and for admin edits.
+    // If remote is stale default (e.g. 5000 because updates are blocked), don't clobber a real local balance.
+    if (STATE.hasLocalBalanceAtBoot && remote === 5000 && STATE.balance !== 5000) return;
+
     if (remote !== STATE.balance) {
       STATE.balanceDirtyUntil = 0;
       setBalance(remote, { persistRemote: false, persistLocal: true });
     }
+  }
+
+  function initClaim500() {
+    const btn = qs("claim500Btn");
+    if (!btn) return;
+    const key = `casino_claim500_next_v1:${STATE.user?.id || "unknown"}`;
+    const COOLDOWN_MS = 30_000;
+
+    function readNext() {
+      try {
+        const n = Number(localStorage.getItem(key));
+        return Number.isFinite(n) ? n : 0;
+      } catch {
+        return 0;
+      }
+    }
+    function writeNext(ts) {
+      try {
+        localStorage.setItem(key, String(ts));
+      } catch {}
+    }
+
+    function render() {
+      const now = Date.now();
+      const next = readNext();
+      const left = Math.max(0, next - now);
+      if (left <= 0) {
+        btn.disabled = false;
+        btn.textContent = "+500";
+        btn.title = "Claim 500 coins (ready)";
+      } else {
+        btn.disabled = true;
+        const s = Math.ceil(left / 1000);
+        btn.textContent = `+500 (${s}s)`;
+        btn.title = `Next claim in ${s}s`;
+      }
+    }
+
+    btn.addEventListener("click", () => {
+      const now = Date.now();
+      const next = readNext();
+      if (next > now) return;
+      // Award 500 coins locally + push to Supabase best-effort via setBalance().
+      setBalance(STATE.balance + 500);
+      writeNext(now + COOLDOWN_MS);
+      render();
+    });
+
+    render();
+    setInterval(render, 500);
   }
 
   // Expose minimal balance API for mini-games (e.g. Crash modal).
@@ -1029,13 +1084,14 @@ By clicking Accept, you confirm you understand this.
     // Supabase remains the source of truth across devices (admin edits, other devices).
     const localBal = loadBalanceFromLocalStorage(STATE.user.id);
     if (typeof localBal === "number") {
+      STATE.hasLocalBalanceAtBoot = true;
       setBalance(localBal, { persistRemote: false, persistLocal: true });
     } else {
       setBalance(await loadBalance(STATE.user.id), { persistRemote: false, persistLocal: true });
     }
     // Always adopt remote value (admin panel / other devices) and keep localStorage in sync.
     // First fetch sets baseline `lastRemoteBalance` without overwriting local progress.
-    await syncBalanceFromSupabase(STATE.user.id, { force: true });
+    await syncBalanceFromSupabase(STATE.user.id);
     setInterval(() => syncBalanceFromSupabase(STATE.user.id), 5000);
 
     // If balance is changed in another tab (e.g. Admin panel), adopt it immediately.
@@ -1062,6 +1118,7 @@ By clicking Accept, you confirm you understand this.
     qs("adminBtn").addEventListener("click", () => (window.location.href = "./admin.html"));
 
     if (await isAdmin()) qs("adminBtn").style.visibility = "visible";
+    initClaim500();
 
     // Tabs
     qs("tab_rouletteView").addEventListener("click", () => switchView("rouletteView"));
