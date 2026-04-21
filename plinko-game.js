@@ -186,6 +186,7 @@
     let multipliers = multipliersLikeScreenshot(slotsCount);
     let pegs = [];
     let slotRects = [];
+    let triangle = null; // { apex:{x,y}, bottomY, left:{x1,y1,x2,y2,nx,ny,side}, right:{...} }
     let highlight = -1;
 
     let balls = []; // [{x,y,vx,vy,r,bet,inSlot,slotIdx,enterAt,settle}]
@@ -274,6 +275,7 @@
       const padBottom = Math.floor(46 * dpr);
       const slotH = Math.max(28 * dpr, Math.floor(h * 0.11));
       const slotTop = h - padBottom;
+      const slotBottom = slotTop + slotH;
 
       const usableW = w - padX * 2;
       const slotW = usableW / slotsCount;
@@ -310,6 +312,47 @@
       // Ball radius relative to slot width.
       const ballR = Math.max(6 * dpr, Math.min(10 * dpr, slotW * 0.16));
       for (const b of balls) b.r = ballR;
+
+      // Build "pyramid" side walls so the ball cannot escape the triangle peg field.
+      // This also reduces bias towards extreme slots caused by sliding on outer walls.
+      if (pegs.length) {
+        let minPegX = Infinity;
+        let maxPegX = -Infinity;
+        for (const p of pegs) {
+          if (p.x < minPegX) minPegX = p.x;
+          if (p.x > maxPegX) maxPegX = p.x;
+        }
+
+        const wallMargin = Math.max(slotW * 0.60, ballR * 1.65);
+        const apexX = w / 2;
+        const apexY = Math.max(padTop + 6 * dpr, (pegAreaTop + gapY) - gapY * 0.95);
+        const bottomY = Math.max(apexY + 40 * dpr, slotTop - Math.floor(8 * dpr));
+        const leftBottomX = clamp(minPegX - wallMargin, padX + ballR, w - padX - ballR);
+        const rightBottomX = clamp(maxPegX + wallMargin, padX + ballR, w - padX - ballR);
+
+        function makeWall(x1, y1, x2, y2, side) {
+          const dx = x2 - x1;
+          const dy = y2 - y1;
+          const invLen = 1 / Math.max(0.0001, Math.hypot(dx, dy));
+          // Normal points "inward" (clockwise from the segment direction).
+          const nx = dy * invLen;
+          const ny = -dx * invLen;
+          return { x1, y1, x2, y2, nx, ny, side };
+        }
+
+        triangle = {
+          apex: { x: apexX, y: apexY },
+          bottomY,
+          slotTop,
+          slotBottom,
+          padX,
+          slotW,
+          left: makeWall(apexX, apexY, leftBottomX, bottomY, "left"),
+          right: makeWall(apexX, apexY, rightBottomX, bottomY, "right"),
+        };
+      } else {
+        triangle = null;
+      }
     }
 
     function reset() {
@@ -328,9 +371,10 @@
       const padTop = Math.floor(26 * dpr);
       const slotW = (canvas.width - Math.floor(22 * dpr) * 2) / slotsCount;
       const r = Math.max(6 * dpr, Math.min(10 * dpr, slotW * 0.16));
-      const x = w / 2 + (Math.random() - 0.5) * slotW * 0.25;
+      // Slightly wider spawn so results are not "stuck" to one multiplier.
+      const x = w / 2 + (Math.random() - 0.5) * slotW * 0.85;
       const y = padTop + 10 * dpr;
-      const vx = (Math.random() - 0.5) * 38 * dpr;
+      const vx = (Math.random() - 0.5) * 72 * dpr;
       const vy = 0;
       return { x, y, vx, vy, r, bet: 0, inSlot: false, slotIdx: 0, enterAt: 0, settle: 0 };
     }
@@ -378,6 +422,52 @@
       if (!balls.length) setStatus("Waiting", "");
     }
 
+    function collideSideWalls(ball) {
+      if (!triangle || ball.inSlot) return;
+      // Only apply while within the pyramid vertical range (plus a small slack).
+      if (ball.y < triangle.apex.y - 14 * dpr || ball.y > triangle.bottomY + 10 * dpr) return;
+
+      function wallXAtY(wall, y) {
+        const denom = wall.y2 - wall.y1;
+        if (Math.abs(denom) < 0.0001) return wall.x1;
+        const t = clamp((y - wall.y1) / denom, 0, 1);
+        return wall.x1 + (wall.x2 - wall.x1) * t;
+      }
+
+      function resolveWall(wall) {
+        const xOn = wallXAtY(wall, ball.y);
+        const outside = wall.side === "left" ? ball.x - ball.r < xOn : ball.x + ball.r > xOn;
+        if (!outside) return;
+
+        // Push inside using the wall normal (triangle walls are "hard" boundaries).
+        const dx = ball.x - wall.x1;
+        const dy = ball.y - wall.y1;
+        const dist = dx * wall.nx + dy * wall.ny; // positive inside
+        const pen = ball.r - dist;
+        if (pen > 0) {
+          ball.x += wall.nx * pen;
+          ball.y += wall.ny * pen;
+        } else {
+          ball.x = wall.side === "left" ? xOn + ball.r : xOn - ball.r;
+        }
+
+        const restitution = 0.74;
+        const vdot = ball.vx * wall.nx + ball.vy * wall.ny;
+        if (vdot < 0) {
+          ball.vx -= (1 + restitution) * vdot * wall.nx;
+          ball.vy -= (1 + restitution) * vdot * wall.ny;
+        }
+
+        // Small tangential friction + micro-chaos to avoid "wall riding".
+        ball.vx *= 0.985;
+        ball.vy *= 0.995;
+        ball.vx += (Math.random() - 0.5) * 8 * dpr;
+      }
+
+      resolveWall(triangle.left);
+      resolveWall(triangle.right);
+    }
+
     function step(dt) {
       if (!balls.length) return;
 
@@ -386,114 +476,120 @@
       const padX = Math.floor(22 * dpr);
       const slotTop = canvas.height - Math.floor(46 * dpr);
       const slotBottom = slotTop + Math.max(28 * dpr, Math.floor(h * 0.11));
-
       const g = 1350 * dpr; // px/s^2 (slower)
-
       const slotW = (w - padX * 2) / slotsCount;
 
-      for (let bi = balls.length - 1; bi >= 0; bi--) {
-        const ball = balls[bi];
-        ball.vy += (ball.inSlot ? g * 0.55 : g) * dt;
+      // Substeps improve collision stability and reduce tunneling on slower frames.
+      const subSteps = clamp(Math.ceil(dt / 0.010), 1, 4);
+      const sdt = dt / subSteps;
 
-        ball.x += ball.vx * dt;
-        ball.y += ball.vy * dt;
+      for (let si = 0; si < subSteps; si++) {
+        for (let bi = balls.length - 1; bi >= 0; bi--) {
+          const ball = balls[bi];
+          ball.vy += (ball.inSlot ? g * 0.55 : g) * sdt;
 
-        // Outer walls
-        if (ball.x - ball.r < padX) {
-          ball.x = padX + ball.r;
-          ball.vx = Math.abs(ball.vx) * 0.72;
-        }
-        if (ball.x + ball.r > w - padX) {
-          ball.x = w - padX - ball.r;
-          ball.vx = -Math.abs(ball.vx) * 0.72;
-        }
+          ball.x += ball.vx * sdt;
+          ball.y += ball.vy * sdt;
 
-        // Peg collisions (skip when deep in slot area)
-        if (!ball.inSlot) {
-          const restitution = 0.78;
-          for (let i = 0; i < pegs.length; i++) {
-            const p = pegs[i];
-            const dx = ball.x - p.x;
-            const dy = ball.y - p.y;
-            const rr = ball.r + p.r;
-            const d2 = dx * dx + dy * dy;
-            if (d2 <= rr * rr) {
-              const d = Math.sqrt(Math.max(0.0001, d2));
-              const nx = dx / d;
-              const ny = dy / d;
-              const pen = rr - d;
-              ball.x += nx * pen;
-              ball.y += ny * pen;
+          // Outer walls (absolute board bounds)
+          if (ball.x - ball.r < padX) {
+            ball.x = padX + ball.r;
+            ball.vx = Math.abs(ball.vx) * 0.72;
+          }
+          if (ball.x + ball.r > w - padX) {
+            ball.x = w - padX - ball.r;
+            ball.vx = -Math.abs(ball.vx) * 0.72;
+          }
 
-              const vdot = ball.vx * nx + ball.vy * ny;
-              if (vdot < 0) {
-                ball.vx -= (1 + restitution) * vdot * nx;
-                ball.vy -= (1 + restitution) * vdot * ny;
+          // Pyramid side walls keep the ball inside the peg field.
+          collideSideWalls(ball);
+
+          // Peg collisions (skip when deep in slot area)
+          if (!ball.inSlot) {
+            const baseRest = 0.78;
+            for (let i = 0; i < pegs.length; i++) {
+              const p = pegs[i];
+              const dx = ball.x - p.x;
+              const dy = ball.y - p.y;
+              const rr = ball.r + p.r;
+              const d2 = dx * dx + dy * dy;
+              if (d2 <= rr * rr) {
+                const d = Math.sqrt(Math.max(0.0001, d2));
+                const nx = dx / d;
+                const ny = dy / d;
+                const pen = rr - d;
+                ball.x += nx * pen;
+                ball.y += ny * pen;
+
+                const restitution = baseRest + (Math.random() - 0.5) * 0.06;
+                const vdot = ball.vx * nx + ball.vy * ny;
+                if (vdot < 0) {
+                  ball.vx -= (1 + restitution) * vdot * nx;
+                  ball.vy -= (1 + restitution) * vdot * ny;
+                }
+
+                // Controlled chaos (keeps motion varied without edge-hunting).
+                ball.vx += (Math.random() - 0.5) * 34 * dpr;
+                ball.vy += (Math.random() - 0.5) * 10 * dpr;
               }
-
-              // Slight chaos (smaller so it doesn't "hunt" edges)
-              ball.vx += (Math.random() - 0.5) * 42 * dpr;
-              ball.vy += (Math.random() - 0.5) * 12 * dpr;
             }
           }
-        }
 
-        // Damping (more horizontal damping)
-        ball.vx *= ball.inSlot ? 0.985 : 0.992;
-        ball.vy *= ball.inSlot ? 0.992 : 0.996;
+          // Damping (more horizontal damping)
+          ball.vx *= ball.inSlot ? 0.985 : 0.992;
+          ball.vy *= ball.inSlot ? 0.992 : 0.996;
 
-        // Enter slot zone
-        if (!ball.inSlot && ball.y + ball.r >= slotTop) {
-          ball.inSlot = true;
-          ball.enterAt = performance.now();
-          ball.slotIdx = clamp(Math.floor((ball.x - padX) / slotW), 0, slotsCount - 1);
-          // Nudge slightly inside slot
-          ball.y = slotTop - ball.r;
-          ball.vy *= 0.55;
-        }
-
-        // Slot settling physics
-        if (ball.inSlot) {
-          // Keep within current slot boundaries; allow moving to neighbor slots.
-          let left = padX + ball.slotIdx * slotW;
-          let right = left + slotW;
-
-          if (ball.x - ball.r < left) {
-            ball.x = left + ball.r;
-            ball.vx = Math.abs(ball.vx) * 0.55;
-            if (ball.slotIdx > 0) ball.slotIdx--;
-          }
-          if (ball.x + ball.r > right) {
-            ball.x = right - ball.r;
-            ball.vx = -Math.abs(ball.vx) * 0.55;
-            if (ball.slotIdx < slotsCount - 1) ball.slotIdx++;
+          // Enter slot zone
+          if (!ball.inSlot && ball.y + ball.r >= slotTop) {
+            ball.inSlot = true;
+            ball.enterAt = performance.now();
+            ball.slotIdx = clamp(Math.floor((ball.x - padX) / slotW), 0, slotsCount - 1);
+            // Nudge slightly inside slot
+            ball.y = slotTop - ball.r;
+            ball.vy *= 0.55;
           }
 
-          // Floor
-          if (ball.y + ball.r > slotBottom) {
-            ball.y = slotBottom - ball.r;
-            ball.vy = -Math.abs(ball.vy) * 0.35;
-            ball.vx *= 0.75;
-            ball.settle += 1;
+          // Slot settling physics
+          if (ball.inSlot) {
+            // Once the ball is in the slot zone, it should stay within its divider walls.
+            const left = padX + ball.slotIdx * slotW;
+            const right = left + slotW;
+
+            if (ball.x - ball.r < left) {
+              ball.x = left + ball.r;
+              ball.vx = Math.abs(ball.vx) * 0.55;
+            }
+            if (ball.x + ball.r > right) {
+              ball.x = right - ball.r;
+              ball.vx = -Math.abs(ball.vx) * 0.55;
+            }
+
+            // Floor
+            if (ball.y + ball.r > slotBottom) {
+              ball.y = slotBottom - ball.r;
+              ball.vy = -Math.abs(ball.vy) * 0.35;
+              ball.vx *= 0.75;
+              ball.settle += 1;
+            }
+
+            // Finish when mostly settled or after timeout in slot zone
+            const tooLong = performance.now() - ball.enterAt > 1000;
+            const slow = Math.abs(ball.vy) < 40 * dpr && Math.abs(ball.vx) < 35 * dpr;
+            if (ball.settle >= 2 && slow) {
+              balls.splice(bi, 1);
+              finishBall(ball, clamp(ball.slotIdx, 0, slotsCount - 1));
+            } else if (tooLong) {
+              balls.splice(bi, 1);
+              finishBall(ball, clamp(ball.slotIdx, 0, slotsCount - 1));
+            }
           }
 
-          // Finish when mostly settled or after timeout in slot zone
-          const tooLong = performance.now() - ball.enterAt > 900;
-          const slow = Math.abs(ball.vy) < 40 * dpr && Math.abs(ball.vx) < 35 * dpr;
-          if (ball.settle >= 2 && slow) {
+          // Safety: fell out
+          if (ball.y - ball.r > h + 220 * dpr) {
             balls.splice(bi, 1);
-            finishBall(ball, clamp(ball.slotIdx, 0, slotsCount - 1));
-          } else if (tooLong) {
-            balls.splice(bi, 1);
-            finishBall(ball, clamp(ball.slotIdx, 0, slotsCount - 1));
+            const idx = clamp(Math.floor((ball.x - padX) / slotW), 0, slotsCount - 1);
+            finishBall(ball, idx);
           }
-        }
-
-        // Safety: fell out
-        if (ball.y - ball.r > h + 220 * dpr) {
-          balls.splice(bi, 1);
-          const idx = clamp(Math.floor((ball.x - padX) / slotW), 0, slotsCount - 1);
-          finishBall(ball, idx);
         }
       }
 
@@ -532,6 +628,22 @@
         ctx.fill();
       }
       ctx.restore();
+
+      // Pyramid outline (subtle)
+      if (triangle) {
+        ctx.save();
+        ctx.lineWidth = 2 * dpr;
+        ctx.strokeStyle = "rgba(0,234,255,0.14)";
+        ctx.shadowColor = "rgba(0,234,255,0.12)";
+        ctx.shadowBlur = 18 * dpr;
+        ctx.beginPath();
+        ctx.moveTo(triangle.left.x1, triangle.left.y1);
+        ctx.lineTo(triangle.left.x2, triangle.left.y2);
+        ctx.moveTo(triangle.right.x1, triangle.right.y1);
+        ctx.lineTo(triangle.right.x2, triangle.right.y2);
+        ctx.stroke();
+        ctx.restore();
+      }
 
       // Balls: red glowing
       if (balls.length) {
