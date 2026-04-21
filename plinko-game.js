@@ -184,7 +184,7 @@
     let multipliers = multipliersLikeScreenshot(slotsCount);
     let pegs = [];
     let slotRects = [];
-    let triangle = null; // { apex:{x,y}, bottomY, left:{x1,y1,x2,y2,nx,ny,side}, right:{...} }
+    let triangle = null; // { apex:{x,y}, bottomY, left:{...}, right:{...} }
     let highlight = -1;
 
     let balls = []; // [{x,y,vx,vy,r,bet,inSlot,slotIdx,enterAt,settle}]
@@ -291,7 +291,7 @@
       // Triangle pegs: rows = slotsCount-1, each row has r+1 pegs.
       const rows = slotsCount - 1;
       // Wider vertical coverage: make pegs fill most of the canvas height.
-      const pegAreaTop = padTop + Math.floor(14 * dpr);
+      const pegAreaTop = padTop + Math.floor(12 * dpr);
       const pegAreaBottom = slotTop - Math.floor(10 * dpr);
       const pegAreaH = Math.max(140 * dpr, pegAreaBottom - pegAreaTop);
       const gapY = pegAreaH / (rows + 1);
@@ -309,7 +309,7 @@
       }
 
       // Ball radius relative to slot width.
-      const ballR = Math.max(6 * dpr, Math.min(10 * dpr, slotW * 0.16));
+      const ballR = Math.max(5.5 * dpr, Math.min(10.5 * dpr, Math.max(pegR * 2.2, slotW * 0.14)));
       for (const b of balls) b.r = ballR;
 
       // Build "pyramid" side walls so the ball cannot escape the triangle peg field.
@@ -323,12 +323,10 @@
         }
 
         const wallMargin = Math.max(slotW * 0.60, ballR * 1.65);
-        // Use a *wide top opening* (trapezoid) so the ball doesn't feel "pulled" into the center instantly.
-        const topY = Math.max(padTop + 6 * dpr, pegAreaTop - gapY * 0.35);
-        const topOpenW = clamp(w * 0.72, slotW * 7, w - padX * 2 - ballR * 2);
-        const topLeftX = w / 2 - topOpenW / 2;
-        const topRightX = w / 2 + topOpenW / 2;
-        const bottomY = Math.max(topY + 60 * dpr, slotTop - Math.floor(8 * dpr));
+        // Stake-like triangle: apex near the first row of pegs, sides go to bottom corners.
+        const apexX = w / 2;
+        const apexY = Math.max(padTop + 4 * dpr, pegAreaTop - gapY * 0.85);
+        const bottomY = Math.max(apexY + 60 * dpr, slotTop - Math.floor(8 * dpr));
         const leftBottomX = clamp(minPegX - wallMargin, padX + ballR, w - padX - ballR);
         const rightBottomX = clamp(maxPegX + wallMargin, padX + ballR, w - padX - ballR);
 
@@ -343,14 +341,14 @@
         }
 
         triangle = {
-          top: { y: topY, leftX: topLeftX, rightX: topRightX },
+          apex: { x: apexX, y: apexY },
           bottomY,
           slotTop,
           slotBottom,
           padX,
           slotW,
-          left: makeWall(topLeftX, topY, leftBottomX, bottomY, "left"),
-          right: makeWall(topRightX, topY, rightBottomX, bottomY, "right"),
+          left: makeWall(apexX, apexY, leftBottomX, bottomY, "left"),
+          right: makeWall(apexX, apexY, rightBottomX, bottomY, "right"),
         };
       } else {
         triangle = null;
@@ -373,11 +371,10 @@
       const padTop = Math.floor(26 * dpr);
       const slotW = (canvas.width - Math.floor(14 * dpr) * 2) / slotsCount;
       const r = Math.max(6 * dpr, Math.min(10 * dpr, slotW * 0.16));
-      // Spawn across the top opening so it feels natural (no instant "funnel" pull).
-      const span = triangle?.top ? (triangle.top.rightX - triangle.top.leftX) : slotW * 3.2;
-      const x = w / 2 + (Math.random() - 0.5) * span * 0.92;
+      // Stake-like: drop near the center with a small variance.
+      const x = w / 2 + (Math.random() - 0.5) * slotW * 0.35;
       const y = padTop + 10 * dpr;
-      const vx = (Math.random() - 0.5) * 72 * dpr;
+      const vx = (Math.random() - 0.5) * 54 * dpr;
       const vy = 0;
       return { x, y, vx, vy, r, bet: 0, inSlot: false, slotIdx: 0, enterAt: 0, settle: 0 };
     }
@@ -428,7 +425,7 @@
     function collideSideWalls(ball) {
       if (!triangle || ball.inSlot) return;
       // Only apply while within the pyramid vertical range (plus a small slack).
-      if (ball.y < triangle.top.y - 14 * dpr || ball.y > triangle.bottomY + 10 * dpr) return;
+      if (ball.y < triangle.apex.y - 14 * dpr || ball.y > triangle.bottomY + 10 * dpr) return;
 
       function wallXAtY(wall, y) {
         const denom = wall.y2 - wall.y1;
@@ -454,7 +451,7 @@
           ball.x = wall.side === "left" ? xOn + ball.r : xOn - ball.r;
         }
 
-        const restitution = 0.74;
+        const restitution = 0.72;
         const vdot = ball.vx * wall.nx + ball.vy * wall.ny;
         if (vdot < 0) {
           ball.vx -= (1 + restitution) * vdot * wall.nx;
@@ -462,9 +459,9 @@
         }
 
         // Small tangential friction + micro-chaos to avoid "wall riding".
-        ball.vx *= 0.985;
-        ball.vy *= 0.995;
-        ball.vx += (Math.random() - 0.5) * 8 * dpr;
+        ball.vx *= 0.99;
+        ball.vy *= 0.997;
+        ball.vx += (Math.random() - 0.5) * 4 * dpr;
       }
 
       resolveWall(triangle.left);
@@ -509,7 +506,7 @@
 
           // Peg collisions (skip when deep in slot area)
           if (!ball.inSlot) {
-            const baseRest = 0.78;
+            const restitution = 0.80;
             for (let i = 0; i < pegs.length; i++) {
               const p = pegs[i];
               const dx = ball.x - p.x;
@@ -524,16 +521,15 @@
                 ball.x += nx * pen;
                 ball.y += ny * pen;
 
-                const restitution = baseRest + (Math.random() - 0.5) * 0.06;
                 const vdot = ball.vx * nx + ball.vy * ny;
                 if (vdot < 0) {
                   ball.vx -= (1 + restitution) * vdot * nx;
                   ball.vy -= (1 + restitution) * vdot * ny;
                 }
 
-                // Controlled chaos (keeps motion varied without edge-hunting).
-                ball.vx += (Math.random() - 0.5) * 34 * dpr;
-                ball.vy += (Math.random() - 0.5) * 10 * dpr;
+                // Tiny micro-jitter prevents perfectly repeating paths without making motion chaotic.
+                ball.vx += (Math.random() - 0.5) * 6 * dpr;
+                ball.vy += (Math.random() - 0.5) * 2 * dpr;
               }
             }
           }
@@ -541,6 +537,12 @@
           // Damping (more horizontal damping)
           ball.vx *= ball.inSlot ? 0.985 : 0.992;
           ball.vy *= ball.inSlot ? 0.992 : 0.996;
+
+          // Cap speed to keep the motion clean (Stake-like).
+          const maxVx = 1200 * dpr;
+          const maxVy = 2200 * dpr;
+          ball.vx = clamp(ball.vx, -maxVx, maxVx);
+          ball.vy = clamp(ball.vy, -maxVy, maxVy);
 
           // Enter slot zone
           if (!ball.inSlot && ball.y + ball.r >= slotTop) {
@@ -633,20 +635,7 @@
       ctx.restore();
 
       // Pyramid outline (subtle)
-      if (triangle) {
-        ctx.save();
-        ctx.lineWidth = 2 * dpr;
-        ctx.strokeStyle = "rgba(0,234,255,0.14)";
-        ctx.shadowColor = "rgba(0,234,255,0.12)";
-        ctx.shadowBlur = 18 * dpr;
-        ctx.beginPath();
-        ctx.moveTo(triangle.left.x1, triangle.left.y1);
-        ctx.lineTo(triangle.left.x2, triangle.left.y2);
-        ctx.moveTo(triangle.right.x1, triangle.right.y1);
-        ctx.lineTo(triangle.right.x2, triangle.right.y2);
-        ctx.stroke();
-        ctx.restore();
-      }
+      // (No explicit triangle lines — matches Stake screenshot vibe)
 
       // Balls: red glowing
       if (balls.length) {
