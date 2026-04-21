@@ -267,6 +267,10 @@ main > .wrap {
 #crashView.view.active .card { height: 100%; display: flex; flex-direction: column; }
 #crashMount { flex: 1 1 auto; min-height: 0; }
 
+/* Plinko: full-screen style (fill available height without scrolling) */
+#plinkoView.view.active .card { height: 100%; padding: 0; overflow: hidden; }
+#plinkoMount { height: 100%; }
+
 /* Crash: neon violet primary (override injected crash styles) */
 #crashView .crash-btn {
   background: linear-gradient(135deg, rgba(168,85,255,0.98), rgba(124,58,237,0.96)) !important;

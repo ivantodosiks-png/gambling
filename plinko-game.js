@@ -1,7 +1,7 @@
 // Plinko (in-page tab). Vanilla JS + Canvas physics. Self-contained styles with `plinko-` prefix.
 (function () {
   const CSS = `
-  .plinko-root{display:grid;grid-template-columns:1.25fr .75fr;gap:14px;align-items:stretch}
+  .plinko-root{position:relative;height:100%;display:block}
   .plinko-card{border-radius:18px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);box-shadow:0 0 0 1px rgba(0,0,0,.65) inset,0 18px 50px rgba(0,0,0,.45);overflow:hidden}
   .plinko-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.22)}
   .plinko-title{font:1000 18px/1 "Space Grotesk",system-ui,Segoe UI,Roboto,Arial;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.92)}
@@ -9,12 +9,14 @@
   .plinko-pill{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);box-shadow:0 0 0 1px rgba(0,234,255,.08) inset}
   .plinko-pill span{font:800 12px/1 system-ui,Segoe UI,Roboto,Arial;letter-spacing:.10em;text-transform:uppercase;color:rgba(255,255,255,.70)}
   .plinko-pill b{font:1000 13px/1 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;color:#00ff88;text-shadow:0 0 18px rgba(0,255,136,.20)}
-  .plinko-board{position:relative;height:min(620px,62vh);background:linear-gradient(180deg,rgba(20,34,56,.55),rgba(10,14,24,.55));}
+  .plinko-stage{position:relative;height:100%}
+  .plinko-board{position:relative;height:100%;background:linear-gradient(180deg,rgba(20,34,56,.55),rgba(10,14,24,.55));}
   .plinko-board:before{content:"";position:absolute;inset:-2px;background:radial-gradient(900px 520px at 50% 10%, rgba(0,234,255,.10), rgba(0,0,0,0) 62%);pointer-events:none}
   .plinko-canvas{width:100%;height:100%;display:block}
   .plinko-toast{position:absolute;left:14px;top:14px;z-index:3;padding:10px 12px;border-radius:14px;background:rgba(0,0,0,.40);border:1px solid rgba(255,255,255,.10);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;flex-direction:column;gap:6px;min-width:200px}
   .plinko-toast .big{font:1000 16px/1 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;color:rgba(255,255,255,.95)}
   .plinko-toast .sub{font:700 12px/1.2 system-ui,Segoe UI,Roboto,Arial;color:rgba(255,255,255,.70)}
+  .plinko-controls{position:absolute;right:14px;top:14px;z-index:4;width:min(420px,92vw);max-height:calc(100% - 28px);overflow:auto}
   .plinko-panel{padding:12px 14px;display:flex;flex-direction:column;gap:12px}
   .plinko-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
   .plinko-label{font:900 12px/1 system-ui,Segoe UI,Roboto,Arial;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.70)}
@@ -36,8 +38,7 @@
   .plinko-chip b{color:#00ff88}
   .plinko-chip i{font-style:normal;color:rgba(255,255,255,.68)}
   @media (max-width: 980px){
-    .plinko-root{grid-template-columns:1fr}
-    .plinko-board{height:min(540px,54vh)}
+    .plinko-controls{left:14px;right:14px;top:auto;bottom:14px;width:auto;max-height:46vh}
   }`;
 
   function injectStyleOnce() {
@@ -115,13 +116,7 @@
   function createUI(mount) {
     mount.innerHTML = `
       <div class="plinko-root">
-        <div class="plinko-card">
-          <div class="plinko-top">
-            <div class="plinko-title">Plinko</div>
-            <div class="plinko-meta">
-              <div class="plinko-pill"><span>Balance</span><b id="plinkoBalance">0</b></div>
-            </div>
-          </div>
+        <div class="plinko-card plinko-stage">
           <div class="plinko-board" id="plinkoBoard">
             <div class="plinko-toast">
               <div class="big" id="plinkoToastBig">Ready</div>
@@ -130,10 +125,13 @@
             <canvas id="plinkoCanvas" class="plinko-canvas"></canvas>
           </div>
         </div>
-        <div class="plinko-card">
+        <div class="plinko-card plinko-controls">
           <div class="plinko-top">
-            <div class="plinko-title" style="font-size:14px;">Controls</div>
-            <div id="plinkoStatus" class="plinko-status">Waiting</div>
+            <div class="plinko-title" style="font-size:14px;">Plinko</div>
+            <div class="plinko-meta">
+              <div class="plinko-pill"><span>Balance</span><b id="plinkoBalance">0</b></div>
+              <div id="plinkoStatus" class="plinko-status">Waiting</div>
+            </div>
           </div>
           <div class="plinko-panel">
             <div>
@@ -270,7 +268,7 @@
       const w = canvas.width;
       const h = canvas.height;
 
-      const padX = Math.floor(22 * dpr);
+      const padX = Math.floor(14 * dpr);
       const padTop = Math.floor(26 * dpr);
       const padBottom = Math.floor(46 * dpr);
       const slotH = Math.max(28 * dpr, Math.floor(h * 0.11));
@@ -292,8 +290,9 @@
 
       // Triangle pegs: rows = slotsCount-1, each row has r+1 pegs.
       const rows = slotsCount - 1;
-      const pegAreaTop = padTop + Math.floor(34 * dpr);
-      const pegAreaBottom = slotTop - Math.floor(14 * dpr);
+      // Wider vertical coverage: make pegs fill most of the canvas height.
+      const pegAreaTop = padTop + Math.floor(14 * dpr);
+      const pegAreaBottom = slotTop - Math.floor(10 * dpr);
       const pegAreaH = Math.max(140 * dpr, pegAreaBottom - pegAreaTop);
       const gapY = pegAreaH / (rows + 1);
       const pegR = Math.max(2.6 * dpr, Math.min(4.4 * dpr, slotW * 0.10));
@@ -324,9 +323,12 @@
         }
 
         const wallMargin = Math.max(slotW * 0.60, ballR * 1.65);
-        const apexX = w / 2;
-        const apexY = Math.max(padTop + 6 * dpr, (pegAreaTop + gapY) - gapY * 0.95);
-        const bottomY = Math.max(apexY + 40 * dpr, slotTop - Math.floor(8 * dpr));
+        // Use a *wide top opening* (trapezoid) so the ball doesn't feel "pulled" into the center instantly.
+        const topY = Math.max(padTop + 6 * dpr, pegAreaTop - gapY * 0.35);
+        const topOpenW = clamp(w * 0.72, slotW * 7, w - padX * 2 - ballR * 2);
+        const topLeftX = w / 2 - topOpenW / 2;
+        const topRightX = w / 2 + topOpenW / 2;
+        const bottomY = Math.max(topY + 60 * dpr, slotTop - Math.floor(8 * dpr));
         const leftBottomX = clamp(minPegX - wallMargin, padX + ballR, w - padX - ballR);
         const rightBottomX = clamp(maxPegX + wallMargin, padX + ballR, w - padX - ballR);
 
@@ -341,14 +343,14 @@
         }
 
         triangle = {
-          apex: { x: apexX, y: apexY },
+          top: { y: topY, leftX: topLeftX, rightX: topRightX },
           bottomY,
           slotTop,
           slotBottom,
           padX,
           slotW,
-          left: makeWall(apexX, apexY, leftBottomX, bottomY, "left"),
-          right: makeWall(apexX, apexY, rightBottomX, bottomY, "right"),
+          left: makeWall(topLeftX, topY, leftBottomX, bottomY, "left"),
+          right: makeWall(topRightX, topY, rightBottomX, bottomY, "right"),
         };
       } else {
         triangle = null;
@@ -369,10 +371,11 @@
     function spawnBall() {
       const w = canvas.width;
       const padTop = Math.floor(26 * dpr);
-      const slotW = (canvas.width - Math.floor(22 * dpr) * 2) / slotsCount;
+      const slotW = (canvas.width - Math.floor(14 * dpr) * 2) / slotsCount;
       const r = Math.max(6 * dpr, Math.min(10 * dpr, slotW * 0.16));
-      // Slightly wider spawn so results are not "stuck" to one multiplier.
-      const x = w / 2 + (Math.random() - 0.5) * slotW * 0.85;
+      // Spawn across the top opening so it feels natural (no instant "funnel" pull).
+      const span = triangle?.top ? (triangle.top.rightX - triangle.top.leftX) : slotW * 3.2;
+      const x = w / 2 + (Math.random() - 0.5) * span * 0.92;
       const y = padTop + 10 * dpr;
       const vx = (Math.random() - 0.5) * 72 * dpr;
       const vy = 0;
@@ -425,7 +428,7 @@
     function collideSideWalls(ball) {
       if (!triangle || ball.inSlot) return;
       // Only apply while within the pyramid vertical range (plus a small slack).
-      if (ball.y < triangle.apex.y - 14 * dpr || ball.y > triangle.bottomY + 10 * dpr) return;
+      if (ball.y < triangle.top.y - 14 * dpr || ball.y > triangle.bottomY + 10 * dpr) return;
 
       function wallXAtY(wall, y) {
         const denom = wall.y2 - wall.y1;
@@ -473,7 +476,7 @@
 
       const w = canvas.width;
       const h = canvas.height;
-      const padX = Math.floor(22 * dpr);
+      const padX = Math.floor(14 * dpr);
       const slotTop = canvas.height - Math.floor(46 * dpr);
       const slotBottom = slotTop + Math.max(28 * dpr, Math.floor(h * 0.11));
       const g = 1350 * dpr; // px/s^2 (slower)
