@@ -36,6 +36,8 @@
     betAmount: 100,
     // Simple remote override guard to prevent unwanted reset to default when remote is stale.
     hasLocalBalanceAtBoot: false,
+    isAdmin: false,
+    activeView: "rouletteView",
     roulette: {
       spinning: false,
       wheelDeg: 0,
@@ -227,6 +229,120 @@
     }
   }
 
+  const MODE_LOCKS = {
+    rouletteView: { key: "roulette_lock", label: "Roulette" },
+    minesView: { key: "mines_lock", label: "Mines" },
+    blackjackView: { key: "blackjack_lock", label: "Blackjack" },
+    crashView: { key: "crash_lock", label: "Crash" },
+    plinkoView: { key: "plinko_lock", label: "Plinko" },
+  };
+
+  const lockCache = new Map(); // key -> { ts, value }
+  async function readLock(key) {
+    const sb = window.sb;
+    if (!sb || !key) return { enabled: false, message: "" };
+    if (STATE.isAdmin) return { enabled: false, message: "" };
+
+    const now = Date.now();
+    const cached = lockCache.get(key);
+    if (cached && now - cached.ts < 1500) return cached.value;
+
+    try {
+      const { data, error } = await sb.from("app_settings").select("value").eq("key", key).maybeSingle();
+      if (error) throw error;
+      const v = data?.value || {};
+      const value = { enabled: Boolean(v.enabled), message: String(v.message || "") };
+      lockCache.set(key, { ts: now, value });
+      return value;
+    } catch {
+      const value = { enabled: false, message: "" };
+      lockCache.set(key, { ts: now, value });
+      return value;
+    }
+  }
+
+  function injectModeLockStylesOnce() {
+    if (document.getElementById("modeLockStyles")) return;
+    const s = document.createElement("style");
+    s.id = "modeLockStyles";
+    s.textContent = `
+      .mode-lock-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 50;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background:
+          radial-gradient(1100px 680px at 18% 0%, rgba(168,85,255,0.16), transparent 60%),
+          radial-gradient(980px 640px at 90% 10%, rgba(0,234,255,0.10), transparent 55%),
+          rgba(11, 0, 20, 0.84);
+      }
+      .mode-lock-card {
+        width: min(720px, 100%);
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.06);
+        border-radius: 18px;
+        padding: 18px;
+        box-shadow: 0 22px 60px rgba(0,0,0,0.55);
+        text-align: center;
+      }
+      .mode-lock-title { font-weight: 1000; font-size: 18px; margin: 0 0 6px; }
+      .mode-lock-muted { color: rgba(233,237,247,0.72); font-size: 13px; }
+      .mode-lock-msg { margin-top: 12px; white-space: pre-wrap; line-height: 1.35; }
+      .mode-lock-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+    `;
+    document.head.appendChild(s);
+  }
+
+  function escapeHtml(text) {
+    return String(text || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function showModeLocked(viewId, modeLabel, message) {
+    injectModeLockStylesOnce();
+    const viewEl = qs(viewId);
+    if (!viewEl) return;
+    viewEl.style.position = "relative";
+
+    const existing = viewEl.querySelector(`[data-mode-lock="${viewId}"]`);
+    if (existing) existing.remove();
+
+    const overlay = document.createElement("div");
+    overlay.className = "mode-lock-overlay";
+    overlay.dataset.modeLock = viewId;
+    overlay.innerHTML = `
+      <div class="mode-lock-card">
+        <div class="mode-lock-title">${escapeHtml(modeLabel)} закрыт</div>
+        <div class="mode-lock-muted">Режим временно недоступен. Админ может открыть его в админке.</div>
+        <div class="mode-lock-msg">${escapeHtml(message || "")}</div>
+        <div class="mode-lock-row">
+          <button id="modeLockRefresh_${viewId}" class="primary-wide" type="button">Refresh</button>
+          <button id="modeLockBack_${viewId}" class="ghost" type="button">Back</button>
+        </div>
+      </div>
+    `;
+    viewEl.appendChild(overlay);
+
+    document.getElementById(`modeLockRefresh_${viewId}`)?.addEventListener("click", () => window.location.reload());
+    document.getElementById(`modeLockBack_${viewId}`)?.addEventListener("click", () => {
+      const prev = STATE.activeView && STATE.activeView !== viewId ? STATE.activeView : "rouletteView";
+      handleViewRequest(prev);
+    });
+  }
+
+  function hideModeLocked(viewId) {
+    const viewEl = qs(viewId);
+    if (!viewEl) return;
+    const existing = viewEl.querySelector(`[data-mode-lock="${viewId}"]`);
+    if (existing) existing.remove();
+  }
+
   function setBalance(next, { persistRemote = true, persistLocal = true } = {}) {
     const n = Math.max(0, Math.floor(Number(next) || 0));
     STATE.balance = n;
@@ -330,6 +446,7 @@
   }
 
   function switchView(view) {
+    STATE.activeView = view;
     for (const v of document.querySelectorAll(".view")) v.classList.remove("active");
     qs(view).classList.add("active");
 
@@ -340,6 +457,20 @@
     if (view === "minesView") setTimeout(() => renderMinesGrid(), 0);
     if (view === "rouletteView") setTimeout(() => buildWheel(), 0);
     if (view === "plinkoView") setTimeout(() => window.plinkoGame?.onShow?.(), 0);
+  }
+
+  async function handleViewRequest(viewId) {
+    const cfg = MODE_LOCKS[viewId];
+    if (!cfg) {
+      switchView(viewId);
+      return;
+    }
+
+    const lock = await readLock(cfg.key);
+    switchView(viewId);
+
+    if (lock.enabled) showModeLocked(viewId, cfg.label, lock.message || "");
+    else hideModeLocked(viewId);
   }
   // ---- Roulette ----
   function fmtCompact(n) {
@@ -1117,16 +1248,17 @@ By clicking Accept, you confirm you understand this.
     qs("leaderboardBtn").addEventListener("click", () => (window.location.href = "./leaderboard.html"));
     qs("adminBtn").addEventListener("click", () => (window.location.href = "./admin.html"));
 
-    if (await isAdmin()) qs("adminBtn").style.visibility = "visible";
+    STATE.isAdmin = await isAdmin();
+    if (STATE.isAdmin) qs("adminBtn").style.visibility = "visible";
     initClaim500();
 
     // Tabs
-    qs("tab_rouletteView").addEventListener("click", () => switchView("rouletteView"));
-    qs("tab_minesView").addEventListener("click", () => switchView("minesView"));
-    qs("tab_blackjackView").addEventListener("click", () => switchView("blackjackView"));
-    qs("tab_crashView")?.addEventListener("click", () => switchView("crashView"));
-    qs("tab_plinkoView")?.addEventListener("click", () => switchView("plinkoView"));
-    switchView("rouletteView");
+    qs("tab_rouletteView").addEventListener("click", () => handleViewRequest("rouletteView"));
+    qs("tab_minesView").addEventListener("click", () => handleViewRequest("minesView"));
+    qs("tab_blackjackView").addEventListener("click", () => handleViewRequest("blackjackView"));
+    qs("tab_crashView")?.addEventListener("click", () => handleViewRequest("crashView"));
+    qs("tab_plinkoView")?.addEventListener("click", () => handleViewRequest("plinkoView"));
+    await handleViewRequest("rouletteView");
 
     // Roulette UI
     buildWheel();

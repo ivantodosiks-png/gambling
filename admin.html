@@ -119,6 +119,82 @@
                 <button id="bjLockSaveBtn" class="secondary" type="button">Save blackjack lock</button>
               </div>
             </div>
+
+            <div style="margin-top:14px; border-top: 1px solid rgba(255,255,255,0.10); padding-top: 14px;">
+              <div class="row" style="align-items:flex-end;">
+                <div style="flex:1 1 auto;">
+                  <div class="muted" style="font-weight:700; color: rgba(233,237,247,0.85);">Roulette lock</div>
+                  <div class="muted">Blocks only the Roulette tab for everyone except admins.</div>
+                </div>
+                <label class="pill" style="display:flex; gap:10px; align-items:center;">
+                  <input id="rouletteLockEnabled" type="checkbox" style="width:auto; margin:0;" />
+                  Enabled
+                </label>
+              </div>
+              <div style="margin-top:10px;">
+                <input id="rouletteLockMessage" placeholder="Optional message for users..." />
+              </div>
+              <div class="row" style="justify-content:flex-start; margin-top:10px;">
+                <button id="rouletteLockSaveBtn" class="secondary" type="button">Save roulette lock</button>
+              </div>
+            </div>
+
+            <div style="margin-top:14px; border-top: 1px solid rgba(255,255,255,0.10); padding-top: 14px;">
+              <div class="row" style="align-items:flex-end;">
+                <div style="flex:1 1 auto;">
+                  <div class="muted" style="font-weight:700; color: rgba(233,237,247,0.85);">Mines lock</div>
+                  <div class="muted">Blocks only the Mines tab for everyone except admins.</div>
+                </div>
+                <label class="pill" style="display:flex; gap:10px; align-items:center;">
+                  <input id="minesLockEnabled" type="checkbox" style="width:auto; margin:0;" />
+                  Enabled
+                </label>
+              </div>
+              <div style="margin-top:10px;">
+                <input id="minesLockMessage" placeholder="Optional message for users..." />
+              </div>
+              <div class="row" style="justify-content:flex-start; margin-top:10px;">
+                <button id="minesLockSaveBtn" class="secondary" type="button">Save mines lock</button>
+              </div>
+            </div>
+
+            <div style="margin-top:14px; border-top: 1px solid rgba(255,255,255,0.10); padding-top: 14px;">
+              <div class="row" style="align-items:flex-end;">
+                <div style="flex:1 1 auto;">
+                  <div class="muted" style="font-weight:700; color: rgba(233,237,247,0.85);">Crash lock</div>
+                  <div class="muted">Blocks only the Crash tab for everyone except admins.</div>
+                </div>
+                <label class="pill" style="display:flex; gap:10px; align-items:center;">
+                  <input id="crashLockEnabled" type="checkbox" style="width:auto; margin:0;" />
+                  Enabled
+                </label>
+              </div>
+              <div style="margin-top:10px;">
+                <input id="crashLockMessage" placeholder="Optional message for users..." />
+              </div>
+              <div class="row" style="justify-content:flex-start; margin-top:10px;">
+                <button id="crashLockSaveBtn" class="secondary" type="button">Save crash lock</button>
+              </div>
+            </div>
+
+            <div style="margin-top:14px; border-top: 1px solid rgba(255,255,255,0.10); padding-top: 14px;">
+              <div class="row" style="align-items:flex-end;">
+                <div style="flex:1 1 auto;">
+                  <div class="muted" style="font-weight:700; color: rgba(233,237,247,0.85);">Plinko lock</div>
+                  <div class="muted">Blocks only the Plinko tab for everyone except admins.</div>
+                </div>
+                <label class="pill" style="display:flex; gap:10px; align-items:center;">
+                  <input id="plinkoLockEnabled" type="checkbox" style="width:auto; margin:0;" />
+                  Enabled
+                </label>
+              </div>
+              <div style="margin-top:10px;">
+                <input id="plinkoLockMessage" placeholder="Optional message for users..." />
+              </div>
+              <div class="row" style="justify-content:flex-start; margin-top:10px;">
+                <button id="plinkoLockSaveBtn" class="secondary" type="button">Save plinko lock</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -169,6 +245,18 @@
         const bjLockEnabledEl = document.getElementById("bjLockEnabled");
         const bjLockMessageEl = document.getElementById("bjLockMessage");
         const bjLockSaveBtn = document.getElementById("bjLockSaveBtn");
+        const rouletteLockEnabledEl = document.getElementById("rouletteLockEnabled");
+        const rouletteLockMessageEl = document.getElementById("rouletteLockMessage");
+        const rouletteLockSaveBtn = document.getElementById("rouletteLockSaveBtn");
+        const minesLockEnabledEl = document.getElementById("minesLockEnabled");
+        const minesLockMessageEl = document.getElementById("minesLockMessage");
+        const minesLockSaveBtn = document.getElementById("minesLockSaveBtn");
+        const crashLockEnabledEl = document.getElementById("crashLockEnabled");
+        const crashLockMessageEl = document.getElementById("crashLockMessage");
+        const crashLockSaveBtn = document.getElementById("crashLockSaveBtn");
+        const plinkoLockEnabledEl = document.getElementById("plinkoLockEnabled");
+        const plinkoLockMessageEl = document.getElementById("plinkoLockMessage");
+        const plinkoLockSaveBtn = document.getElementById("plinkoLockSaveBtn");
         const settingsToggle = document.getElementById("settingsToggle");
         const settingsPanel = document.getElementById("settingsPanel");
 
@@ -220,24 +308,32 @@
           setStatus(value.enabled ? "Maintenance enabled" : "Maintenance disabled", "ok");
         }
 
-        async function loadBlackjackLock() {
-          const { data, error } = await sb.from("app_settings").select("value").eq("key", "blackjack_lock").maybeSingle();
+        const LOCKS = [
+          { key: "blackjack_lock", label: "Blackjack", enabledEl: bjLockEnabledEl, messageEl: bjLockMessageEl, saveBtn: bjLockSaveBtn },
+          { key: "roulette_lock", label: "Roulette", enabledEl: rouletteLockEnabledEl, messageEl: rouletteLockMessageEl, saveBtn: rouletteLockSaveBtn },
+          { key: "mines_lock", label: "Mines", enabledEl: minesLockEnabledEl, messageEl: minesLockMessageEl, saveBtn: minesLockSaveBtn },
+          { key: "crash_lock", label: "Crash", enabledEl: crashLockEnabledEl, messageEl: crashLockMessageEl, saveBtn: crashLockSaveBtn },
+          { key: "plinko_lock", label: "Plinko", enabledEl: plinkoLockEnabledEl, messageEl: plinkoLockMessageEl, saveBtn: plinkoLockSaveBtn },
+        ].filter((x) => x.enabledEl && x.messageEl && x.saveBtn);
+
+        async function loadLock(cfg) {
+          const { data, error } = await sb.from("app_settings").select("value").eq("key", cfg.key).maybeSingle();
           if (error) {
-            setStatus(`Blackjack lock load error: ${error.message}`, "err");
+            setStatus(`${cfg.label} lock load error: ${error.message}`, "err");
             return;
           }
           const v = data?.value || {};
-          bjLockEnabledEl.checked = Boolean(v.enabled);
-          bjLockMessageEl.value = String(v.message || "");
+          cfg.enabledEl.checked = Boolean(v.enabled);
+          cfg.messageEl.value = String(v.message || "");
         }
 
-        async function saveBlackjackLock() {
-          bjLockSaveBtn.disabled = true;
-          const value = { enabled: Boolean(bjLockEnabledEl.checked), message: String(bjLockMessageEl.value || "") };
-          const { error } = await sb.from("app_settings").upsert({ key: "blackjack_lock", value }, { onConflict: "key" });
-          bjLockSaveBtn.disabled = false;
-          if (error) return setStatus(`Blackjack lock save error: ${error.message}`, "err");
-          setStatus(value.enabled ? "Blackjack locked" : "Blackjack unlocked", "ok");
+        async function saveLock(cfg) {
+          cfg.saveBtn.disabled = true;
+          const value = { enabled: Boolean(cfg.enabledEl.checked), message: String(cfg.messageEl.value || "") };
+          const { error } = await sb.from("app_settings").upsert({ key: cfg.key, value }, { onConflict: "key" });
+          cfg.saveBtn.disabled = false;
+          if (error) return setStatus(`${cfg.label} lock save error: ${error.message}`, "err");
+          setStatus(value.enabled ? `${cfg.label} locked` : `${cfg.label} unlocked`, "ok");
         }
 
         let all = [];
@@ -353,14 +449,14 @@
         searchEl.addEventListener("input", render);
         refreshBtn.addEventListener("click", load);
         maintSaveBtn.addEventListener("click", saveMaintenance);
-        bjLockSaveBtn.addEventListener("click", saveBlackjackLock);
+        for (const cfg of LOCKS) cfg.saveBtn.addEventListener("click", () => saveLock(cfg));
         logoutBtn.addEventListener("click", async () => {
           await sb.auth.signOut();
           window.location.href = "./index.html";
         });
 
         await loadMaintenance();
-        await loadBlackjackLock();
+        for (const cfg of LOCKS) await loadLock(cfg);
         await load();
       })();
     </script>

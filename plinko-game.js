@@ -1,7 +1,7 @@
 // Plinko (in-page tab). Vanilla JS + Canvas physics. Self-contained styles with `plinko-` prefix.
 (function () {
   const CSS = `
-  .plinko-root{position:relative;height:100%;display:block}
+  .plinko-root{height:100%;display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:14px;align-items:stretch}
   .plinko-card{border-radius:18px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);box-shadow:0 0 0 1px rgba(0,0,0,.65) inset,0 18px 50px rgba(0,0,0,.45);overflow:hidden}
   .plinko-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.22)}
   .plinko-title{font:1000 18px/1 "Space Grotesk",system-ui,Segoe UI,Roboto,Arial;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.92)}
@@ -9,14 +9,15 @@
   .plinko-pill{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);box-shadow:0 0 0 1px rgba(0,234,255,.08) inset}
   .plinko-pill span{font:800 12px/1 system-ui,Segoe UI,Roboto,Arial;letter-spacing:.10em;text-transform:uppercase;color:rgba(255,255,255,.70)}
   .plinko-pill b{font:1000 13px/1 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;color:#00ff88;text-shadow:0 0 18px rgba(0,255,136,.20)}
-  .plinko-stage{position:relative;height:100%}
-  .plinko-board{position:relative;height:100%;background:linear-gradient(180deg,rgba(20,34,56,.55),rgba(10,14,24,.55));}
+  .plinko-stage{position:relative;height:100%;display:flex;flex-direction:column;min-height:0}
+  .plinko-board{position:relative;flex:1 1 auto;min-height:0;background:linear-gradient(180deg,rgba(20,34,56,.55),rgba(10,14,24,.55));}
   .plinko-board:before{content:"";position:absolute;inset:-2px;background:radial-gradient(900px 520px at 50% 10%, rgba(0,234,255,.10), rgba(0,0,0,0) 62%);pointer-events:none}
   .plinko-canvas{width:100%;height:100%;display:block}
-  .plinko-toast{position:absolute;left:14px;top:14px;z-index:3;padding:10px 12px;border-radius:14px;background:rgba(0,0,0,.40);border:1px solid rgba(255,255,255,.10);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;flex-direction:column;gap:6px;min-width:200px}
-  .plinko-toast .big{font:1000 16px/1 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;color:rgba(255,255,255,.95)}
-  .plinko-toast .sub{font:700 12px/1.2 system-ui,Segoe UI,Roboto,Arial;color:rgba(255,255,255,.70)}
-  .plinko-controls{position:absolute;right:14px;top:14px;z-index:4;width:min(420px,92vw);max-height:calc(100% - 28px);overflow:auto}
+  .plinko-controls{min-height:0;display:flex;flex-direction:column}
+  .plinko-controls .plinko-panel{overflow:auto;min-height:0}
+  .plinko-toastText{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:14px;background:rgba(0,0,0,.26);border:1px solid rgba(255,255,255,.10);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+  .plinko-toastText .big{font:1000 16px/1 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;color:rgba(255,255,255,.95)}
+  .plinko-toastText .sub{font:700 12px/1.2 system-ui,Segoe UI,Roboto,Arial;color:rgba(255,255,255,.70)}
   .plinko-panel{padding:12px 14px;display:flex;flex-direction:column;gap:12px}
   .plinko-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
   .plinko-label{font:900 12px/1 system-ui,Segoe UI,Roboto,Arial;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.70)}
@@ -33,12 +34,17 @@
   .plinko-btn.primary{background:linear-gradient(180deg,rgba(168,85,255,.95),rgba(124,58,237,.85));border-color:rgba(168,85,255,.55);color:#090012;box-shadow:0 12px 30px rgba(168,85,255,.18)}
   .plinko-btn.primary:hover{box-shadow:0 12px 34px rgba(168,85,255,.24),0 0 24px rgba(0,234,255,.10)}
   .plinko-hint{font:700 12px/1.35 system-ui,Segoe UI,Roboto,Arial;color:rgba(255,255,255,.70);min-height:18px}
+  .plinko-seedRow{display:flex;gap:10px;align-items:center}
+  .plinko-seedRow .plinko-input{flex:1 1 auto}
+  .plinko-smallBtn{height:44px;border-radius:14px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.06);color:rgba(255,255,255,.92);font:900 12px/1 system-ui,Segoe UI,Roboto,Arial;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;white-space:nowrap;padding:0 12px}
+  .plinko-smallBtn:hover{border-color:rgba(0,234,255,.25);box-shadow:0 0 18px rgba(0,234,255,.10)}
   .plinko-history{display:flex;flex-wrap:wrap;gap:8px}
   .plinko-chip{padding:8px 10px;border-radius:999px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.10);font:1000 12px/1 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;color:rgba(255,255,255,.90)}
   .plinko-chip b{color:#00ff88}
   .plinko-chip i{font-style:normal;color:rgba(255,255,255,.68)}
   @media (max-width: 980px){
-    .plinko-controls{left:14px;right:14px;top:auto;bottom:14px;width:auto;max-height:46vh}
+    .plinko-root{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}
+    .plinko-controls{max-height:44vh}
   }`;
 
   function injectStyleOnce() {
@@ -56,6 +62,35 @@
 
   function clamp(v, a, b) {
     return Math.max(a, Math.min(b, v));
+  }
+
+  function hash32(str) {
+    // FNV-1a 32-bit
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+
+  function makeRngFromSeed(seedStr) {
+    // Mulberry32 (fast, decent for games; deterministic)
+    let a = hash32(String(seedStr || "")) || 0x12345678;
+    return function rng() {
+      a |= 0;
+      a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function randomSeedText() {
+    // Non-crypto seed; just a convenient default.
+    const a = Math.floor(Math.random() * 1e9);
+    const b = Math.floor(Math.random() * 1e9);
+    return `seed_${a.toString(36)}_${b.toString(36)}`;
   }
 
   function getUserIdText() {
@@ -118,10 +153,6 @@
       <div class="plinko-root">
         <div class="plinko-card plinko-stage">
           <div class="plinko-board" id="plinkoBoard">
-            <div class="plinko-toast">
-              <div class="big" id="plinkoToastBig">Ready</div>
-              <div class="sub" id="plinkoToastSub">Drop a ball.</div>
-            </div>
             <canvas id="plinkoCanvas" class="plinko-canvas"></canvas>
           </div>
         </div>
@@ -134,10 +165,22 @@
             </div>
           </div>
           <div class="plinko-panel">
+            <div class="plinko-toastText" aria-live="polite">
+              <div class="big" id="plinkoToastBig">Ready</div>
+              <div class="sub" id="plinkoToastSub">Drop a ball.</div>
+            </div>
             <div>
               <div class="plinko-label" style="margin-bottom:8px;">Bet</div>
               <input id="plinkoBet" class="plinko-input" type="number" inputmode="numeric" min="1" step="1" value="50" />
               <div class="plinko-hint" id="plinkoHint"></div>
+            </div>
+            <div>
+              <div class="plinko-label" style="margin-bottom:8px;">Seed</div>
+              <div class="plinko-seedRow">
+                <input id="plinkoSeed" class="plinko-input" type="text" spellcheck="false" autocomplete="off" />
+                <button id="plinkoNewSeedBtn" class="plinko-smallBtn" type="button">New</button>
+              </div>
+              <div class="plinko-hint" id="plinkoNonceHint"></div>
             </div>
             <div class="plinko-btnRow">
               <button id="plinkoDropBtn" class="plinko-btn primary" type="button">Drop Ball</button>
@@ -171,6 +214,9 @@
     const statusEl = document.getElementById("plinkoStatus");
     const hintEl = document.getElementById("plinkoHint");
     const betEl = document.getElementById("plinkoBet");
+    const seedEl = document.getElementById("plinkoSeed");
+    const newSeedBtn = document.getElementById("plinkoNewSeedBtn");
+    const nonceHintEl = document.getElementById("plinkoNonceHint");
     const dropBtn = document.getElementById("plinkoDropBtn");
     const clearBtn = document.getElementById("plinkoClearBtn");
     const toastBig = document.getElementById("plinkoToastBig");
@@ -183,13 +229,21 @@
     let slotsCount = 17;
     let multipliers = multipliersLikeScreenshot(slotsCount);
     let pegs = [];
+    let pegsByRow = [];
+    let geom = null; // {padX,slotTop,slotBottom,slotW,rows,pegAreaTop,gapY}
     let slotRects = [];
     let triangle = null; // { apex:{x,y}, bottomY, left:{...}, right:{...} }
     let highlight = -1;
 
-    let balls = []; // [{x,y,vx,vy,r,bet,inSlot,slotIdx,enterAt,settle}]
+    let balls = []; // [{x,y,vx,vy,r,bet,inSlot,slotIdx,spawnAt,enterAt,settle,targetSlot,nonce,seedUsed}]
     let raf = 0;
     let lastT = 0;
+
+    let seedValue = "";
+    const uidSeed = getUserIdText() || "unknown";
+    const SEED_KEY = `plinko_seed_v1:${uidSeed}`;
+    const NONCE_KEY = `plinko_nonce_v1:${uidSeed}`;
+    let nonce = loadNonce();
 
     const history = loadHistory();
 
@@ -246,6 +300,48 @@
       hintEl.textContent = text || "";
     }
 
+    function loadNonce() {
+      try {
+        const n = Number(localStorage.getItem(NONCE_KEY));
+        return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+      } catch {
+        return 0;
+      }
+    }
+
+    function saveNonce() {
+      try {
+        localStorage.setItem(NONCE_KEY, String(nonce));
+      } catch {}
+    }
+
+    function getSeed() {
+      return seedValue || "default";
+    }
+
+    function setSeed(next) {
+      seedValue = String(next || "");
+      if (seedEl) seedEl.value = seedValue;
+      try {
+        localStorage.setItem(SEED_KEY, seedValue);
+      } catch {}
+      renderNonceHint();
+    }
+
+    function loadSeed() {
+      try {
+        const s = (localStorage.getItem(SEED_KEY) || "").trim();
+        return s || randomSeedText();
+      } catch {
+        return randomSeedText();
+      }
+    }
+
+    function renderNonceHint() {
+      if (!nonceHintEl) return;
+      nonceHintEl.textContent = `Nonce: ${nonce}`;
+    }
+
     function setup() {
       const rect = boardEl.getBoundingClientRect();
       dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
@@ -298,15 +394,20 @@
       const pegR = Math.max(2.6 * dpr, Math.min(4.4 * dpr, slotW * 0.10));
 
       pegs = [];
+      pegsByRow = Array.from({ length: rows }, () => []);
       for (let r = 0; r < rows; r++) {
         const count = r + 1;
         const rowW = (count - 1) * slotW;
         const startX = w / 2 - rowW / 2;
         const y = pegAreaTop + (r + 1) * gapY;
         for (let i = 0; i < count; i++) {
-          pegs.push({ x: startX + i * slotW, y, r: pegR });
+          const peg = { x: startX + i * slotW, y, r: pegR, row: r };
+          pegs.push(peg);
+          pegsByRow[r].push(peg);
         }
       }
+
+      geom = { padX, slotTop, slotBottom, slotW, slotH, rows, pegAreaTop, gapY, pegR };
 
       // Ball radius relative to slot width.
       const ballR = Math.max(5.5 * dpr, Math.min(10.5 * dpr, Math.max(pegR * 2.2, slotW * 0.14)));
@@ -366,17 +467,30 @@
       draw();
     }
 
-    function spawnBall() {
+    function computeTargetSlot(seed, nonceValue) {
+      // Binomial/Galton board: n = rows, p=0.5. Center is most likely.
+      const n = Math.max(1, slotsCount - 1);
+      const rng = makeRngFromSeed(`${seed}::${nonceValue}::${slotsCount}`);
+      let rights = 0;
+      for (let i = 0; i < n; i++) if (rng() < 0.5) rights++;
+      const center = Math.floor(slotsCount / 2);
+      const offset = rights - Math.floor(n / 2);
+      return clamp(center + offset, 0, slotsCount - 1);
+    }
+
+    function spawnBall(seed, nonceValue) {
       const w = canvas.width;
       const padTop = Math.floor(26 * dpr);
       const slotW = (canvas.width - Math.floor(14 * dpr) * 2) / slotsCount;
       const r = Math.max(6 * dpr, Math.min(10 * dpr, slotW * 0.16));
       // Stake-like: drop near the center with a small variance.
-      const x = w / 2 + (Math.random() - 0.5) * slotW * 0.35;
+      const rng = makeRngFromSeed(`${seed}::spawn::${nonceValue}`);
+      const x = w / 2 + (rng() - 0.5) * slotW * 0.55;
       const y = padTop + 10 * dpr;
-      const vx = (Math.random() - 0.5) * 54 * dpr;
+      const vx = (rng() - 0.5) * 44 * dpr;
       const vy = 0;
-      return { x, y, vx, vy, r, bet: 0, inSlot: false, slotIdx: 0, enterAt: 0, settle: 0 };
+      const targetSlot = computeTargetSlot(seed, nonceValue);
+      return { x, y, vx, vy, r, bet: 0, inSlot: false, slotIdx: 0, spawnAt: performance.now(), enterAt: 0, settle: 0, targetSlot, nonce: nonceValue, seedUsed: seed };
     }
 
     function drop() {
@@ -386,7 +500,7 @@
 
       const bal = balanceApi.get();
       if (bet > bal) return setHint("Insufficient balance.");
-      if (balls.length >= 25) return setHint("Too many balls. Wait for a few to finish.");
+      if (balls.length >= 10) return setHint("Too many balls. Wait for a few to finish.");
 
       // Take bet.
       balanceApi.set(bal - bet);
@@ -396,9 +510,14 @@
       setStatus(`Running (${balls.length + 1})`, "run");
       setHint("");
       toast("Running", `Bet: ${fmt(bet)}`);
-      const b = spawnBall();
+
+      const seed = getSeed();
+      const b = spawnBall(seed, nonce);
       b.bet = bet;
       balls.push(b);
+      nonce += 1;
+      saveNonce();
+      renderNonceHint();
     }
 
     function finishBall(b, slotIdx) {
@@ -417,8 +536,13 @@
       renderHistory();
 
       setStatus("Finished", profit >= 0 ? "win" : "lose");
-      setHint(profit >= 0 ? `Win: +${fmt(profit)} (x${m.toFixed(m >= 10 ? 0 : 1)})` : `Loss: ${fmt(profit)} (x${m.toFixed(m >= 10 ? 0 : 1)})`);
-      toast(`x${m.toFixed(m >= 10 ? 0 : 1)}`, profit >= 0 ? `WIN +${fmt(profit)}` : `LOST ${fmt(profit)}`);
+      const mTxt = m.toFixed(m >= 10 ? 0 : 1);
+      setHint(
+        profit >= 0
+          ? `Win: +${fmt(profit)} (x${mTxt}) • Slot ${slotIdx + 1}/${slotsCount}`
+          : `Loss: ${fmt(profit)} (x${mTxt}) • Slot ${slotIdx + 1}/${slotsCount}`
+      );
+      toast(`x${mTxt}`, `Seed: ${String(b.seedUsed || "").slice(0, 14)}… • Nonce: ${b.nonce}`);
       if (!balls.length) setStatus("Waiting", "");
     }
 
@@ -434,10 +558,10 @@
         return wall.x1 + (wall.x2 - wall.x1) * t;
       }
 
-      function resolveWall(wall) {
-        const xOn = wallXAtY(wall, ball.y);
-        const outside = wall.side === "left" ? ball.x - ball.r < xOn : ball.x + ball.r > xOn;
-        if (!outside) return;
+        function resolveWall(wall) {
+          const xOn = wallXAtY(wall, ball.y);
+          const outside = wall.side === "left" ? ball.x - ball.r < xOn : ball.x + ball.r > xOn;
+          if (!outside) return;
 
         // Push inside using the wall normal (triangle walls are "hard" boundaries).
         const dx = ball.x - wall.x1;
@@ -458,11 +582,12 @@
           ball.vy -= (1 + restitution) * vdot * wall.ny;
         }
 
-        // Small tangential friction + micro-chaos to avoid "wall riding".
-        ball.vx *= 0.99;
-        ball.vy *= 0.997;
-        ball.vx += (Math.random() - 0.5) * 4 * dpr;
-      }
+          // Small tangential friction + micro-chaos to avoid "wall riding".
+          ball.vx *= 0.99;
+          ball.vy *= 0.997;
+          const rrng = makeRngFromSeed(`${ball.seedUsed}::wall::${ball.nonce}::${wall.side}::${Math.floor(ball.y)}`);
+          ball.vx += (rrng() - 0.5) * 3.5 * dpr;
+        }
 
       resolveWall(triangle.left);
       resolveWall(triangle.right);
@@ -507,29 +632,37 @@
           // Peg collisions (skip when deep in slot area)
           if (!ball.inSlot) {
             const restitution = 0.80;
-            for (let i = 0; i < pegs.length; i++) {
-              const p = pegs[i];
-              const dx = ball.x - p.x;
-              const dy = ball.y - p.y;
-              const rr = ball.r + p.r;
-              const d2 = dx * dx + dy * dy;
-              if (d2 <= rr * rr) {
-                const d = Math.sqrt(Math.max(0.0001, d2));
-                const nx = dx / d;
-                const ny = dy / d;
-                const pen = rr - d;
-                ball.x += nx * pen;
-                ball.y += ny * pen;
+            // Only check pegs near current y (1-2 rows around) for performance stability.
+            const rowGuess = geom ? Math.round((ball.y - geom.pegAreaTop) / geom.gapY) - 1 : 0;
+            const r0 = clamp(rowGuess - 1, 0, (geom?.rows || 1) - 1);
+            const r1 = clamp(rowGuess + 1, 0, (geom?.rows || 1) - 1);
+            for (let rrIdx = r0; rrIdx <= r1; rrIdx++) {
+              const row = pegsByRow[rrIdx] || [];
+              for (let i = 0; i < row.length; i++) {
+                const p = row[i];
+                const dx = ball.x - p.x;
+                const dy = ball.y - p.y;
+                const rr = ball.r + p.r;
+                const d2 = dx * dx + dy * dy;
+                if (d2 <= rr * rr) {
+                  const d = Math.sqrt(Math.max(0.0001, d2));
+                  const nx = dx / d;
+                  const ny = dy / d;
+                  const pen = rr - d;
+                  ball.x += nx * pen;
+                  ball.y += ny * pen;
 
-                const vdot = ball.vx * nx + ball.vy * ny;
-                if (vdot < 0) {
-                  ball.vx -= (1 + restitution) * vdot * nx;
-                  ball.vy -= (1 + restitution) * vdot * ny;
+                  const vdot = ball.vx * nx + ball.vy * ny;
+                  if (vdot < 0) {
+                    ball.vx -= (1 + restitution) * vdot * nx;
+                    ball.vy -= (1 + restitution) * vdot * ny;
+                  }
+
+                  // Deterministic micro-jitter based on seed+nonce+row+peg (not frame-rate dependent).
+                  const rrng = makeRngFromSeed(`${ball.seedUsed}::jitter::${ball.nonce}::${p.row}::${i}`);
+                  ball.vx += (rrng() - 0.5) * 5.5 * dpr;
+                  ball.vy += (rrng() - 0.5) * 2.0 * dpr;
                 }
-
-                // Tiny micro-jitter prevents perfectly repeating paths without making motion chaotic.
-                ball.vx += (Math.random() - 0.5) * 6 * dpr;
-                ball.vy += (Math.random() - 0.5) * 2 * dpr;
               }
             }
           }
@@ -543,6 +676,24 @@
           const maxVy = 2200 * dpr;
           ball.vx = clamp(ball.vx, -maxVx, maxVx);
           ball.vy = clamp(ball.vy, -maxVy, maxVy);
+
+          // Anti-stall: if the ball is hovering in the peg field with very low speed, nudge it down.
+          if (!ball.inSlot && geom && ball.y > geom.pegAreaTop && Math.abs(ball.vx) + Math.abs(ball.vy) < 28 * dpr) {
+            ball.vy += 160 * dpr * sdt;
+          }
+
+          // Gentle deterministic steering towards preselected target slot after most pegs are passed.
+          // Keeps distribution binomial and guarantees a finish without obvious "magnet" behavior.
+          if (!ball.inSlot && geom) {
+            const steerStartY = geom.pegAreaTop + geom.gapY * (geom.rows * 0.70);
+            if (ball.y > steerStartY && ball.y < slotTop - 6 * dpr) {
+              const tx = padX + (ball.targetSlot + 0.5) * slotW;
+              const dx = tx - ball.x;
+              const pull = clamp(dx / (slotW * 6), -1, 1);
+              ball.vx += pull * 42 * dpr * sdt;
+              ball.vx *= 0.999;
+            }
+          }
 
           // Enter slot zone
           if (!ball.inSlot && ball.y + ball.r >= slotTop) {
@@ -563,10 +714,20 @@
             if (ball.x - ball.r < left) {
               ball.x = left + ball.r;
               ball.vx = Math.abs(ball.vx) * 0.55;
+              if (ball.slotIdx > 0) ball.slotIdx -= 1;
             }
             if (ball.x + ball.r > right) {
               ball.x = right - ball.r;
               ball.vx = -Math.abs(ball.vx) * 0.55;
+              if (ball.slotIdx < slotsCount - 1) ball.slotIdx += 1;
+            }
+
+            // Bias inside slot zone towards preselected target slot (subtle).
+            if (Number.isFinite(ball.targetSlot) && ball.slotIdx !== ball.targetSlot) {
+              const tx = padX + (ball.targetSlot + 0.5) * slotW;
+              const dx = tx - ball.x;
+              const pull = clamp(dx / (slotW * 2.6), -1, 1);
+              ball.vx += pull * 220 * dpr * sdt;
             }
 
             // Floor
@@ -585,8 +746,14 @@
               finishBall(ball, clamp(ball.slotIdx, 0, slotsCount - 1));
             } else if (tooLong) {
               balls.splice(bi, 1);
-              finishBall(ball, clamp(ball.slotIdx, 0, slotsCount - 1));
+              finishBall(ball, clamp(Number(ball.targetSlot) || ball.slotIdx, 0, slotsCount - 1));
             }
+          }
+
+          // Extra safety: if something goes weird, force finish after a hard timeout.
+          if (!ball.inSlot && performance.now() - (ball.spawnAt || 0) > 6500) {
+            balls.splice(bi, 1);
+            finishBall(ball, clamp(Number(ball.targetSlot) || 0, 0, slotsCount - 1));
           }
 
           // Safety: fell out
@@ -722,9 +889,27 @@
 
     dropBtn.addEventListener("click", drop);
     clearBtn.addEventListener("click", reset);
+    if (seedEl) {
+      seedEl.addEventListener("input", () => {
+        seedValue = (seedEl.value || "").trim();
+        try {
+          localStorage.setItem(SEED_KEY, seedValue);
+        } catch {}
+      });
+    }
+    if (newSeedBtn) {
+      newSeedBtn.addEventListener("click", () => {
+        setSeed(randomSeedText());
+        nonce = 0;
+        saveNonce();
+        renderNonceHint();
+      });
+    }
     window.addEventListener("resize", () => setup());
 
     setBalanceUI();
+    setSeed(loadSeed());
+    renderNonceHint();
     renderHistory();
     reset();
     setup();

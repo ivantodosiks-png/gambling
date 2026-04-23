@@ -9,6 +9,7 @@ const BJ = (() => {
     playersSubscription: null,
     roomPollTimer: 0,
     currentRoomStatus: null,
+    nextRoundTimer: 0,
   };
 
   // Helper function to get current user profile
@@ -500,13 +501,6 @@ const BJ = (() => {
 
       if (insertError) throw insertError;
 
-      const { error: updateError } = await sb
-        .from('blackjack_rooms')
-        .update({ current_players: room.current_players + 1 })
-        .eq('id', roomId);
-
-      if (updateError) throw updateError;
-
       state.currentRoom = roomId;
       state.currentPlayer = profile.id;
       state.currentRoomStatus = 'waiting';
@@ -539,24 +533,24 @@ const BJ = (() => {
     try {
       const profile = await getProfile();
       if (profile) {
+        const { data: room } = await sb
+          .from('blackjack_rooms')
+          .select('host_id')
+          .eq('id', state.currentRoom)
+          .maybeSingle();
+
+        const isHost = !!(room && room.host_id === profile.id);
+
+        // Remove self from the room.
         await sb
           .from('blackjack_players')
           .delete()
           .eq('room_id', state.currentRoom)
           .eq('player_id', profile.id);
 
-        const { data: room } = await sb
-          .from('blackjack_rooms')
-          .select()
-          .eq('id', state.currentRoom)
-          .single();
-
-        if (room && room.current_players > 1) {
-          await sb
-            .from('blackjack_rooms')
-            .update({ current_players: room.current_players - 1 })
-            .eq('id', state.currentRoom);
-        } else if (room) {
+        // If host leaves: close the whole lobby immediately (cascades players).
+        // Otherwise DB triggers will keep current_players synced and auto-delete empty rooms.
+        if (isHost) {
           await sb
             .from('blackjack_rooms')
             .delete()
@@ -567,6 +561,10 @@ const BJ = (() => {
       state.currentRoom = null;
       state.currentPlayer = null;
       state.currentRoomStatus = null;
+      if (state.nextRoundTimer) {
+        clearTimeout(state.nextRoundTimer);
+        state.nextRoundTimer = 0;
+      }
       setWaitingRoomId('-');
       showLobby(true);
       showWaitingRoom(false);
@@ -627,7 +625,10 @@ const BJ = (() => {
     try {
       const { data: room, error } = await sb.from('blackjack_rooms').select().eq('id', roomId).maybeSingle();
       if (error) throw error;
-      if (!room) return;
+      if (!room) {
+        if (state.currentRoom === roomId) forceExitRoom('Room closed by host.');
+        return;
+      }
       await handleRoomUpdate(room);
     } catch (e) {
       console.warn('syncRoomOnce error:', e?.message || e);
@@ -651,6 +652,10 @@ const BJ = (() => {
     state.subscription = sb
       .channel(`bj_room:${roomId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'blackjack_rooms', filter: `id=eq.${roomId}` }, (payload) => {
+        if (payload?.eventType === 'DELETE') {
+          forceExitRoom('Room closed by host.');
+          return;
+        }
         if (payload?.new) handleRoomUpdate(payload.new);
       })
       .subscribe();
@@ -762,7 +767,7 @@ const BJ = (() => {
 
       await sb
         .from('blackjack_rooms')
-        .update({ status: 'betting', round_number: 1 })
+        .update({ status: 'betting', round_number: Number(room.round_number || 0) + 1 })
         .eq('id', roomId);
 
       renderWaitingRoom(roomId);
@@ -1101,7 +1106,8 @@ const BJ = (() => {
         .eq('id', roomId)
         .maybeSingle();
 
-      if (!room || (room.status !== 'playing' && room.status !== 'results')) return;
+      // Only trigger dealer actions once (during play).
+      if (!room || room.status !== 'playing') return;
 
       const { data: players } = await sb
         .from('blackjack_players')
@@ -1124,6 +1130,7 @@ const BJ = (() => {
         .select()
         .eq('id', roomId)
         .single();
+      if (!room || room.status !== 'playing') return;
 
       let dealerHand = typeof room.dealer_hand === 'string' ? JSON.parse(room.dealer_hand) : room.dealer_hand;
       let deck = typeof room.deck === 'string' ? JSON.parse(room.deck) : room.deck;
@@ -1148,7 +1155,16 @@ const BJ = (() => {
       await updateBalances(roomId);
 
       document.getElementById('bjControls').style.display = 'none';
-      showGameResults(roomId);
+      await showGameResults(roomId);
+
+      // Auto-start next betting phase after a short delay (host only).
+      const profile = await getProfile();
+      if (profile && room.host_id === profile.id) {
+        if (state.nextRoundTimer) clearTimeout(state.nextRoundTimer);
+        state.nextRoundTimer = setTimeout(() => {
+          resetRoundStateForNextRound(roomId);
+        }, 8000);
+      }
     } catch (error) {
       console.error('Error in dealer play:', error);
     }
@@ -1227,6 +1243,10 @@ const BJ = (() => {
 
   const showGameResults = async (roomId) => {
     try {
+      const profile = await getProfile();
+      const { data: room } = await sb.from('blackjack_rooms').select('host_id').eq('id', roomId).maybeSingle();
+      const isHost = !!(profile && room && room.host_id === profile.id);
+
       const players = await fetchPlayersWithProfiles(roomId);
 
       let resultsHtml = '<div style="text-align: center;"><h3>Round Over</h3>';
@@ -1234,7 +1254,18 @@ const BJ = (() => {
         const profitText = p.winnings > p.bet ? `+${p.winnings - p.bet}` : `${p.winnings - p.bet}`;
         resultsHtml += `<div>${p.profiles?.username || 'Player'}: ${p.result.toUpperCase()} (${profitText})</div>`;
       }
-      resultsHtml += '<button onclick="BJ.returnToLobby()" class="primary-wide">Return to Lobby</button></div>';
+      if (isHost) {
+        resultsHtml += `
+          <div style="margin-top:12px; color: var(--muted); font-size: 12px;">Next round starts automatically in a few seconds.</div>
+          <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:12px;">
+            <button onclick="BJ.nextRoundNow()" class="secondary-wide" type="button">Next round now</button>
+            <button onclick="BJ.closeRoom()" class="ghost" type="button">Close room</button>
+          </div>
+        `;
+      } else {
+        resultsHtml += `<div style="margin-top:12px; color: var(--muted); font-size: 12px;">Waiting for host to start next round...</div>`;
+      }
+      resultsHtml += '<div style="margin-top:12px;"><button onclick="BJ.returnToLobby()" class="primary-wide">Return to Lobby</button></div></div>';
 
       document.getElementById('bjGameMsg').innerHTML = resultsHtml;
     } catch (error) {
@@ -1242,10 +1273,107 @@ const BJ = (() => {
     }
   };
 
+  const nextRoundNow = async () => {
+    if (!state.currentRoom) return;
+    if (state.nextRoundTimer) {
+      clearTimeout(state.nextRoundTimer);
+      state.nextRoundTimer = 0;
+    }
+    await resetRoundStateForNextRound(state.currentRoom);
+  };
+
+  const closeRoom = async () => {
+    if (!state.currentRoom) return;
+    try {
+      const profile = await getProfile();
+      if (!profile) return;
+      const { data: room } = await sb.from('blackjack_rooms').select('host_id').eq('id', state.currentRoom).maybeSingle();
+      if (room && room.host_id === profile.id) {
+        await sb.from('blackjack_rooms').delete().eq('id', state.currentRoom);
+      }
+    } catch {}
+  };
+
   const returnToLobby = async () => {
     await leaveRoom();
     renderRoomsList();
     showLobby(true);
+  };
+
+  const forceExitRoom = (message) => {
+    try {
+      if (state.subscription) {
+        state.subscription.unsubscribe();
+        state.subscription = null;
+      }
+      if (state.playersSubscription) {
+        state.playersSubscription.unsubscribe();
+        state.playersSubscription = null;
+      }
+    } catch {}
+
+    clearInterval(state.roomPollTimer);
+    state.roomPollTimer = 0;
+
+    if (state.nextRoundTimer) {
+      clearTimeout(state.nextRoundTimer);
+      state.nextRoundTimer = 0;
+    }
+
+    state.currentRoom = null;
+    state.currentPlayer = null;
+    state.currentRoomStatus = null;
+    setWaitingRoomId('-');
+    showLobby(true);
+    showWaitingRoom(false);
+    showGameTable(false);
+
+    if (message) {
+      try {
+        showMessage('bjLobbyMsg', message, 'error');
+      } catch {}
+    }
+  };
+
+  const resetRoundStateForNextRound = async (roomId) => {
+    const profile = await getProfile();
+    if (!profile) return;
+
+    const { data: room, error: roomErr } = await sb
+      .from('blackjack_rooms')
+      .select('host_id, round_number')
+      .eq('id', roomId)
+      .maybeSingle();
+    if (roomErr || !room) return;
+
+    // Only host can advance the room.
+    if (room.host_id !== profile.id) return;
+
+    const nextRound = Number(room.round_number || 0) + 1;
+    const deck = createDeck();
+
+    await sb
+      .from('blackjack_players')
+      .update({
+        bet: 0,
+        hand: JSON.stringify([]),
+        score: 0,
+        status: 'betting',
+        result: null,
+        winnings: 0,
+      })
+      .eq('room_id', roomId);
+
+    await sb
+      .from('blackjack_rooms')
+      .update({
+        status: 'betting',
+        round_number: nextRound,
+        deck: JSON.stringify(deck),
+        dealer_hand: JSON.stringify([]),
+        dealer_score: 0,
+      })
+      .eq('id', roomId);
   };
 
   const readBlackjackLock = async () => {
@@ -1379,6 +1507,8 @@ const BJ = (() => {
     stand,
     doubleDown,
     returnToLobby,
+    nextRoundNow,
+    closeRoom,
   };
 })();
 
