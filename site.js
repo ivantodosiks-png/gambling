@@ -535,7 +535,7 @@
     const w = wheel ? wheel.getBoundingClientRect().width : 360;
     // Place labels on the rim (inside the thick border). Using a proportional radius is
     // more stable than trying to infer CSS border widths.
-    const labelRadius = Math.max(100, w * 0.35);
+    const labelRadius = Math.max(120, w * 0.405);
 
     const stops = [];
     for (let i = 0; i < POCKETS.length; i += 1) {
@@ -562,6 +562,8 @@
       const d = document.createElement("div");
       d.className = `wheel-label ${p.c}`;
       d.textContent = String(p.n);
+      d.dataset.pocketIdx = String(i);
+      d.dataset.pocketN = String(p.n);
       d.style.transform = `translate(-50%, -50%) rotate(${a}deg) translateY(-${labelRadius}px) rotate(${-a}deg)`;
       labels.appendChild(d);
     }
@@ -870,6 +872,22 @@
     STATE.roulette.history.unshift(rolled);
     STATE.roulette.history = STATE.roulette.history.slice(0, 20);
     renderHistory();
+
+    // Highlight the winning pocket on the wheel.
+    try {
+      for (const el of document.querySelectorAll("#wheelLabels .wheel-label")) el.classList.remove("win");
+      const winLabel = document.querySelector(`#wheelLabels .wheel-label[data-pocket-idx="${pocketIdx}"]`);
+      if (winLabel) {
+        winLabel.classList.add("win");
+        setTimeout(() => winLabel.classList.remove("win"), 1100);
+      }
+      const ring = qs("wheelRing");
+      if (ring) {
+        ring.classList.remove("win-red", "win-black", "win-green");
+        ring.classList.add(rolled.c === "red" ? "win-red" : rolled.c === "black" ? "win-black" : "win-green");
+        setTimeout(() => ring.classList.remove("win-red", "win-black", "win-green"), 1100);
+      }
+    } catch {}
 
     // Flash the rolled number on the table
     for (const b of document.querySelectorAll("#rouletteTable .rbet")) b.classList.remove("rolled");

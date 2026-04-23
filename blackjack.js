@@ -10,6 +10,9 @@ const BJ = (() => {
     roomPollTimer: 0,
     currentRoomStatus: null,
     nextRoundTimer: 0,
+    actionInFlight: false,
+    actionHints: {}, // { [playerId]: { text: string, until: number } }
+    lastPlayerSnapshot: {}, // { [playerId]: { handSig: string, status: string, bet: number } }
   };
 
   // Helper function to get current user profile
@@ -304,6 +307,11 @@ const BJ = (() => {
 
   const renderDealerHand = (cards, hideHoleCard = false) => {
     const container = document.getElementById('bjDealerHand');
+    if (!container) return;
+
+    const sig = JSON.stringify({ hideHoleCard: !!hideHoleCard, cards: (cards || []).map((c) => `${c?.value || ''}${c?.suit || ''}`) });
+    if (container.dataset && container.dataset.sig === sig) return;
+    if (container.dataset) container.dataset.sig = sig;
     container.innerHTML = '';
     
     for (let i = 0; i < cards.length; i++) {
@@ -323,42 +331,144 @@ const BJ = (() => {
     if (betBtn) betBtn.disabled = !!locked;
   };
 
+  const setControlsDisabled = (disabled) => {
+    const hitBtn = document.getElementById('bjHitBtn');
+    const standBtn = document.getElementById('bjStandBtn');
+    const doubleBtn = document.getElementById('bjDoubleBtn');
+    if (hitBtn) hitBtn.disabled = !!disabled;
+    if (standBtn) standBtn.disabled = !!disabled;
+    if (doubleBtn) doubleBtn.disabled = !!disabled;
+  };
+
+  const setControlsBusy = (busy) => {
+    state.actionInFlight = !!busy;
+    setControlsDisabled(!!busy);
+  };
+
+  const updateActionHints = (playersWithParsedHands) => {
+    const now = Date.now();
+    const prev = state.lastPlayerSnapshot || {};
+    const next = {};
+
+    for (const p of playersWithParsedHands || []) {
+      const pid = String(p.player_id || '');
+      if (!pid) continue;
+      const handArr = Array.isArray(p.hand) ? p.hand : [];
+      const handSig = JSON.stringify(handArr.map((c) => `${c?.value || ''}${c?.suit || ''}`));
+      const status = String(p.status || '');
+      const bet = Math.floor(Number(p.bet || 0));
+      next[pid] = { handSig, status, bet };
+
+      const prevSnap = prev[pid];
+      if (!prevSnap) continue;
+
+      let hint = '';
+      if (prevSnap.status !== status) {
+        if (status === 'stand') hint = 'STAND';
+        else if (status === 'bust') hint = 'BUST';
+        else if (status === 'blackjack') hint = 'BLACKJACK';
+      } else if (prevSnap.handSig !== handSig) {
+        hint = bet > prevSnap.bet ? 'DOUBLE' : 'HIT';
+      }
+
+      if (hint) state.actionHints[pid] = { text: hint, until: now + 2200 };
+    }
+
+    for (const pid of Object.keys(state.actionHints || {})) {
+      const h = state.actionHints[pid];
+      if (!h || h.until <= now) delete state.actionHints[pid];
+    }
+
+    state.lastPlayerSnapshot = next;
+  };
+
   const renderPlayersArea = (gameState) => {
     const container = document.getElementById('bjPlayersArea');
-    container.innerHTML = '';
+    if (!container) return;
     
     if (!gameState.players || gameState.players.length === 0) {
       container.innerHTML = '<div style="text-align:center; color: var(--muted); padding: 20px;">No players yet</div>';
       return;
     }
-    
+
+    const existingById = new Map();
+    for (const el of Array.from(container.querySelectorAll('[data-player-id]'))) {
+      const pid = el.getAttribute('data-player-id');
+      if (pid) existingById.set(pid, el);
+    }
+
+    const keep = new Set();
+
     for (let player of gameState.players) {
-      const seat = document.createElement('div');
-      seat.className = `bj-player-seat ${player.status === 'active' ? 'active' : ''}`;
-      
-      const parsedHand = typeof player.hand === 'string' ? JSON.parse(player.hand || '[]') : (player.hand || []);
+      const pid = String(player.player_id || '');
+      if (!pid) continue;
+      keep.add(pid);
+
+      let seat = existingById.get(pid);
+      const isNew = !seat;
+      if (!seat) {
+        seat = document.createElement('div');
+        seat.className = 'bj-player-seat';
+        seat.setAttribute('data-player-id', pid);
+        seat.innerHTML = `
+          <div class="bj-player-name" data-name></div>
+          <div class="bj-player-hand" data-hand></div>
+          <div class="bj-player-info" data-info></div>
+        `;
+      }
+
+      const nameEl = seat.querySelector('[data-name]');
+      const handEl = seat.querySelector('[data-hand]');
+      const infoEl = seat.querySelector('[data-info]');
+
+      const parsedHand = Array.isArray(player.hand) ? player.hand : (typeof player.hand === 'string' ? JSON.parse(player.hand || '[]') : []);
       const score = calculateHandScore(parsedHand);
-      const handDisplay = document.createElement('div');
-      handDisplay.className = 'bj-player-hand';
-      
-      if (Array.isArray(parsedHand) && parsedHand.length > 0) {
-        for (let card of parsedHand) {
-          handDisplay.appendChild(formatCardDisplay(card));
+      const statusText = String(player.status || '').toUpperCase();
+      const actionHint = state.actionHints[pid];
+      const hintText = actionHint && actionHint.until > Date.now() ? actionHint.text : '';
+
+      if (nameEl) {
+        const baseName = player.profiles?.username || player.username || 'Player';
+        const statusBadge = statusText && statusText !== 'PLAYING'
+          ? ` <span style="margin-left:8px; font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid rgba(255,255,255,0.14); background:rgba(255,255,255,0.06); color:rgba(233,237,247,0.72);">${statusText}</span>`
+          : '';
+        const hintBadge = hintText
+          ? ` <span style="margin-left:8px; font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid rgba(255,255,255,0.14); background:rgba(255,255,255,0.06); color:rgba(233,237,247,0.88);">${hintText}</span>`
+          : '';
+        const html = `${String(baseName).replace(/</g, '&lt;')}${statusBadge}${hintBadge}`;
+        if (nameEl.innerHTML !== html) nameEl.innerHTML = html;
+      }
+
+      if (handEl) {
+        const handSig = JSON.stringify((parsedHand || []).map((c) => `${c?.value || ''}${c?.suit || ''}`));
+        if (handEl.dataset.sig !== handSig) {
+          handEl.dataset.sig = handSig;
+          handEl.innerHTML = '';
+          if (Array.isArray(parsedHand) && parsedHand.length > 0) {
+            const frag = document.createDocumentFragment();
+            for (let card of parsedHand) frag.appendChild(formatCardDisplay(card));
+            handEl.appendChild(frag);
+          }
         }
       }
-      
-      seat.innerHTML = `
-        <div class="bj-player-name">${player.profiles?.username || player.username || 'Player'}</div>
-      `;
-      seat.appendChild(handDisplay);
-      seat.innerHTML += `
-        <div class="bj-player-info">
-          <div>Score: <b>${score}</b></div>
-          <div>Bet: <b>${player.bet}</b></div>
-        </div>
-      `;
-      
-      container.appendChild(seat);
+
+      if (infoEl) {
+        const bet = Math.floor(Number(player.bet || 0));
+        const infoSig = JSON.stringify({ score, bet });
+        if (infoEl.dataset.sig !== infoSig) {
+          infoEl.dataset.sig = infoSig;
+          infoEl.innerHTML = `
+            <div>Score: <b>${score}</b></div>
+            <div>Bet: <b>${bet}</b></div>
+          `;
+        }
+      }
+
+      if (isNew) container.appendChild(seat);
+    }
+
+    for (const [pid, el] of existingById.entries()) {
+      if (!keep.has(pid)) el.remove();
     }
   };
 
@@ -959,6 +1069,7 @@ const BJ = (() => {
         ...p,
         hand: typeof p.hand === 'string' ? JSON.parse(p.hand) : p.hand
       }));
+      updateActionHints(playersWithParsedHands);
       renderPlayersArea({ players: playersWithParsedHands });
 
       const profile = await getProfile();
@@ -967,6 +1078,11 @@ const BJ = (() => {
         document.getElementById('bjCurrentPlayerName').textContent = currentPlayer.profiles?.username || 'You';
         document.getElementById('bjCurrentPlayerScore').textContent = currentPlayer.score;
       }
+
+      if (state.actionInFlight) return;
+      if (!currentPlayer) return setControlsDisabled(true);
+      const canAct = room && room.status === 'playing' && currentPlayer.status === 'playing';
+      setControlsDisabled(!canAct);
     } catch (error) {
       console.error('Error rendering game state:', error);
     }
@@ -974,8 +1090,10 @@ const BJ = (() => {
 
   const hit = async () => {
     if (!state.currentRoom) return;
+    if (state.actionInFlight) return;
 
     try {
+      setControlsBusy(true);
       const profile = await getProfile();
       const { data: room } = await sb
         .from('blackjack_rooms')
@@ -1016,17 +1134,21 @@ const BJ = (() => {
         .update({ deck: JSON.stringify(newDeck) })
         .eq('id', state.currentRoom);
 
-      renderGameState(state.currentRoom);
+      await renderGameState(state.currentRoom);
       if (newStatus === 'bust' || newStatus === 'stand') checkRoundEnd(state.currentRoom);
     } catch (error) {
       console.error('Error hitting:', error);
+    } finally {
+      setControlsBusy(false);
     }
   };
 
   const stand = async () => {
     if (!state.currentRoom) return;
+    if (state.actionInFlight) return;
 
     try {
+      setControlsBusy(true);
       const profile = await getProfile();
       await sb
         .from('blackjack_players')
@@ -1034,17 +1156,21 @@ const BJ = (() => {
         .eq('room_id', state.currentRoom)
         .eq('player_id', profile.id);
 
-      renderGameState(state.currentRoom);
+      await renderGameState(state.currentRoom);
       checkRoundEnd(state.currentRoom);
     } catch (error) {
       console.error('Error standing:', error);
+    } finally {
+      setControlsBusy(false);
     }
   };
 
   const doubleDown = async () => {
     if (!state.currentRoom) return;
+    if (state.actionInFlight) return;
 
     try {
+      setControlsBusy(true);
       const profile = await getProfile();
       const { data: player } = await sb
         .from('blackjack_players')
@@ -1088,10 +1214,12 @@ const BJ = (() => {
         .update({ deck: JSON.stringify(newDeck) })
         .eq('id', state.currentRoom);
 
-      renderGameState(state.currentRoom);
+      await renderGameState(state.currentRoom);
       checkRoundEnd(state.currentRoom);
     } catch (error) {
       console.error('Error doubling down:', error);
+    } finally {
+      setControlsBusy(false);
     }
   };
 
