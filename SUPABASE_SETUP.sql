@@ -136,6 +136,18 @@ alter table public.blackjack_players add column if not exists created_at timesta
 alter table public.blackjack_players add column if not exists updated_at timestamptz not null default now();
 alter table public.blackjack_players disable row level security;
 
+-- Ensure seats are locked: only one player per seat in a room.
+-- IMPORTANT: if you already have duplicate seat_position rows in a room, this constraint will fail to create.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'blackjack_players_room_seat_unique'
+  ) then
+    alter table public.blackjack_players
+      add constraint blackjack_players_room_seat_unique unique (room_id, seat_position);
+  end if;
+end $$;
+
 -- Keep blackjack_rooms.current_players in sync and auto-delete empty rooms.
 create or replace function public.bj_sync_room_player_count()
 returns trigger

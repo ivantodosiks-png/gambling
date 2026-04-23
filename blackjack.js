@@ -345,6 +345,40 @@ const BJ = (() => {
     setControlsDisabled(!!busy);
   };
 
+  const claimAndStartRoundIfReady = async (roomId) => {
+    try {
+      const { data: room } = await sb
+        .from('blackjack_rooms')
+        .select('id,status')
+        .eq('id', roomId)
+        .maybeSingle();
+      if (!room || room.status !== 'betting') return;
+
+      const { data: players } = await sb
+        .from('blackjack_players')
+        .select('bet')
+        .eq('room_id', roomId);
+      if (!Array.isArray(players) || !players.length) return;
+      const allBet = players.every((p) => Math.floor(Number(p.bet || 0)) > 0);
+      if (!allBet) return;
+
+      // Claim the start so only one client deals (avoid double dealing).
+      const { data: claimed } = await sb
+        .from('blackjack_rooms')
+        .update({ status: 'dealing' })
+        .eq('id', roomId)
+        .eq('status', 'betting')
+        .select('id')
+        .maybeSingle();
+
+      if (!claimed?.id) return;
+
+      await startRound(roomId);
+    } catch (e) {
+      console.warn('claimAndStartRoundIfReady error:', e?.message || e);
+    }
+  };
+
   const updateActionHints = (playersWithParsedHands) => {
     const now = Date.now();
     const prev = state.lastPlayerSnapshot || {};
@@ -429,13 +463,14 @@ const BJ = (() => {
 
       if (nameEl) {
         const baseName = player.profiles?.username || player.username || 'Player';
+        const seatNum = Number.isFinite(Number(player.seat_position)) ? `#${Number(player.seat_position) + 1} ` : '';
         const statusBadge = statusText && statusText !== 'PLAYING'
           ? ` <span style="margin-left:8px; font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid rgba(255,255,255,0.14); background:rgba(255,255,255,0.06); color:rgba(233,237,247,0.72);">${statusText}</span>`
           : '';
         const hintBadge = hintText
           ? ` <span style="margin-left:8px; font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid rgba(255,255,255,0.14); background:rgba(255,255,255,0.06); color:rgba(233,237,247,0.88);">${hintText}</span>`
           : '';
-        const html = `${String(baseName).replace(/</g, '&lt;')}${statusBadge}${hintBadge}`;
+        const html = `${String(seatNum + baseName).replace(/</g, '&lt;')}${statusBadge}${hintBadge}`;
         if (nameEl.innerHTML !== html) nameEl.innerHTML = html;
       }
 
@@ -584,17 +619,49 @@ const BJ = (() => {
         return;
       }
 
-      if (room.current_players >= room.max_players) {
-        showMessage('bjLobbyMsg', 'Room is full', 'error');
-        return;
-      }
-
       if (room.status !== 'waiting') {
         showMessage('bjLobbyMsg', 'Game already in progress', 'error');
         return;
       }
 
-      const nextSeat = room.current_players;
+      // Seat locking: pick the first free seat position (server-side constraint recommended).
+      const { data: existingPlayers } = await sb
+        .from('blackjack_players')
+        .select('player_id, seat_position')
+        .eq('room_id', roomId);
+
+      const list = Array.isArray(existingPlayers) ? existingPlayers : [];
+      const already = list.find((p) => p.player_id === profile.id);
+      if (already) {
+        state.currentRoom = roomId;
+        state.currentPlayer = profile.id;
+        state.currentRoomStatus = 'waiting';
+        showLobby(false);
+        showWaitingRoom(true);
+        setWaitingRoomId(roomId);
+        renderWaitingRoom(roomId);
+        subscribeToRoom(roomId);
+        return;
+      }
+
+      if (list.length >= Number(room.max_players || 5)) {
+        showMessage('bjLobbyMsg', 'Room is full', 'error');
+        return;
+      }
+
+      const taken = new Set(list.map((p) => Number(p.seat_position)).filter((n) => Number.isFinite(n)));
+      let nextSeat = -1;
+      for (let s = 0; s < Number(room.max_players || 5); s += 1) {
+        if (!taken.has(s)) {
+          nextSeat = s;
+          break;
+        }
+      }
+      if (nextSeat < 0) {
+        showMessage('bjLobbyMsg', 'No free seats', 'error');
+        return;
+      }
+
       const { error: insertError } = await sb
         .from('blackjack_players')
         .insert({
@@ -719,6 +786,17 @@ const BJ = (() => {
       return;
     }
 
+    // dealing: temporarily lock UI while a single client deals cards
+    if (room.status === 'dealing') {
+      showWaitingRoom(false);
+      showGameTable(true);
+      document.getElementById('bjBettingPhase').style.display = 'none';
+      document.getElementById('bjControls').style.display = 'none';
+      await renderGameState(room.id);
+      showMessage('bjGameMsg', 'Dealing...', 'info');
+      return;
+    }
+
     // playing/results: show table and render actual state
     if (room.status === 'playing' || room.status === 'results') {
       showWaitingRoom(false);
@@ -802,7 +880,8 @@ const BJ = (() => {
       for (let p of players || []) {
         const item = document.createElement('div');
         item.className = 'bj-player-waiting-item ' + (p.status === 'ready' ? 'ready' : '');
-        item.textContent = p.profiles?.username || 'Player';
+        const seat = Number.isFinite(Number(p.seat_position)) ? `#${Number(p.seat_position) + 1} ` : '';
+        item.textContent = seat + (p.profiles?.username || 'Player');
         list.appendChild(item);
       }
 
@@ -980,10 +1059,7 @@ const BJ = (() => {
         .eq('room_id', state.currentRoom);
 
       const allBet = players.every(p => p.bet > 0);
-      if (allBet) {
-        const isHost = room && room.host_id === profile.id;
-        if (isHost) startRound(state.currentRoom, room);
-      }
+      if (allBet) await claimAndStartRoundIfReady(state.currentRoom);
 
       showMessage('bjBettingMsg', 'Bet confirmed!', 'success');
     } catch (error) {
@@ -992,7 +1068,7 @@ const BJ = (() => {
     }
   };
 
-  const startRound = async (roomId, room) => {
+  const startRound = async (roomId) => {
     try {
       const { data: latestRoom, error: latestRoomErr } = await sb
         .from('blackjack_rooms')
@@ -1000,7 +1076,7 @@ const BJ = (() => {
         .eq('id', roomId)
         .single();
       if (latestRoomErr) throw latestRoomErr;
-      if (!latestRoom || latestRoom.status !== 'betting') return;
+      if (!latestRoom || (latestRoom.status !== 'betting' && latestRoom.status !== 'dealing')) return;
 
       const deck = createDeck();
       const { data: players } = await sb
@@ -1042,7 +1118,7 @@ const BJ = (() => {
 
       document.getElementById('bjBettingPhase').style.display = 'none';
       document.getElementById('bjControls').style.display = 'flex';
-      renderGameState(roomId);
+      await renderGameState(roomId);
       checkRoundEnd(roomId);
     } catch (error) {
       console.error('Error starting round:', error);
