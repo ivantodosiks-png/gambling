@@ -47,7 +47,12 @@
       .err { color: #ff3b3b; }
       .ok { color: #00ff88; }
       .settings-panel { overflow: hidden; max-height: 0; opacity: 0; transition: max-height 240ms ease, opacity 180ms ease; }
-      .settings-panel.open { max-height: 520px; opacity: 1; }
+      .settings-panel.open {
+        max-height: calc(100vh - 220px);
+        overflow: auto;
+        opacity: 1;
+        padding-right: 6px;
+      }
     </style>
   </head>
   <body>
