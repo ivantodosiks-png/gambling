@@ -1076,7 +1076,8 @@ const BJ = (() => {
         .eq('id', roomId)
         .single();
       if (latestRoomErr) throw latestRoomErr;
-      if (!latestRoom || (latestRoom.status !== 'betting' && latestRoom.status !== 'dealing')) return;
+      // Only the client that claimed `dealing` should deal cards.
+      if (!latestRoom || latestRoom.status !== 'dealing') return;
 
       const deck = createDeck();
       const { data: players } = await sb
@@ -1306,7 +1307,7 @@ const BJ = (() => {
 
       const { data: room } = await sb
         .from('blackjack_rooms')
-        .select('host_id, status')
+        .select('status')
         .eq('id', roomId)
         .maybeSingle();
 
@@ -1320,7 +1321,16 @@ const BJ = (() => {
 
       const allFinished = players.every(p => ['bust', 'stand', 'blackjack'].includes(p.status));
       if (allFinished) {
-        if (room.host_id === profile.id) await dealerPlay(roomId);
+        // Claim dealer reveal/settlement so only ONE client runs it (host may disconnect).
+        const { data: claimed } = await sb
+          .from('blackjack_rooms')
+          .update({ status: 'dealer' })
+          .eq('id', roomId)
+          .eq('status', 'playing')
+          .select('id')
+          .maybeSingle();
+
+        if (claimed?.id) await dealerPlay(roomId);
       }
     } catch (error) {
       console.error('Error checking round end:', error);
@@ -1334,7 +1344,7 @@ const BJ = (() => {
         .select()
         .eq('id', roomId)
         .single();
-      if (!room || room.status !== 'playing') return;
+      if (!room || room.status !== 'dealer') return;
 
       let dealerHand = typeof room.dealer_hand === 'string' ? JSON.parse(room.dealer_hand) : room.dealer_hand;
       let deck = typeof room.deck === 'string' ? JSON.parse(room.deck) : room.deck;
@@ -1346,14 +1356,21 @@ const BJ = (() => {
         dealerScore = calculateHandScore(dealerHand);
       }
 
-      await sb
+      // Finalize dealer hand + reveal results (claim transition dealer -> results).
+      const { data: progressed } = await sb
         .from('blackjack_rooms')
         .update({
           dealer_hand: JSON.stringify(dealerHand),
           dealer_score: dealerScore,
           status: 'results',
         })
-        .eq('id', roomId);
+        .eq('id', roomId)
+        .eq('status', 'dealer')
+        .select('id')
+        .maybeSingle();
+
+      // Another client already processed settlement.
+      if (!progressed?.id) return;
 
       await determineWinners(roomId, dealerScore);
       await updateBalances(roomId);
@@ -1361,14 +1378,11 @@ const BJ = (() => {
       document.getElementById('bjControls').style.display = 'none';
       await showGameResults(roomId);
 
-      // Auto-start next betting phase after a short delay (host only).
-      const profile = await getProfile();
-      if (profile && room.host_id === profile.id) {
-        if (state.nextRoundTimer) clearTimeout(state.nextRoundTimer);
-        state.nextRoundTimer = setTimeout(() => {
-          resetRoundStateForNextRound(roomId);
-        }, 8000);
-      }
+      // Auto-start next betting phase after a short delay (any client can claim reset).
+      if (state.nextRoundTimer) clearTimeout(state.nextRoundTimer);
+      state.nextRoundTimer = setTimeout(() => {
+        resetRoundStateForNextRound(roomId);
+      }, 8000);
     } catch (error) {
       console.error('Error in dealer play:', error);
     }
@@ -1545,13 +1559,21 @@ const BJ = (() => {
 
     const { data: room, error: roomErr } = await sb
       .from('blackjack_rooms')
-      .select('host_id, round_number')
+      .select('status, round_number')
       .eq('id', roomId)
       .maybeSingle();
     if (roomErr || !room) return;
 
-    // Only host can advance the room.
-    if (room.host_id !== profile.id) return;
+    // Only allow reset from results state, and claim it to avoid double resets.
+    if (room.status !== 'results') return;
+    const { data: claimed } = await sb
+      .from('blackjack_rooms')
+      .update({ status: 'resetting' })
+      .eq('id', roomId)
+      .eq('status', 'results')
+      .select('id')
+      .maybeSingle();
+    if (!claimed?.id) return;
 
     const nextRound = Number(room.round_number || 0) + 1;
     const deck = createDeck();

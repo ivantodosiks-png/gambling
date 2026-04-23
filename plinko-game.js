@@ -1,31 +1,32 @@
 // Plinko (in-page tab). Vanilla JS + Canvas physics. Self-contained styles with `plinko-` prefix.
 (function () {
   const CSS = `
-  .plinko-root{height:100%;display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:14px;align-items:stretch}
-  .plinko-card{border-radius:18px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);box-shadow:0 0 0 1px rgba(0,0,0,.65) inset,0 18px 50px rgba(0,0,0,.45);overflow:hidden}
-  .plinko-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.22)}
-  .plinko-title{font:1000 18px/1 "Space Grotesk",system-ui,Segoe UI,Roboto,Arial;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.92)}
+  .plinko-root{height:100%;display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;align-items:stretch}
+  .plinko-card{border-radius:18px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);box-shadow:0 0 0 1px rgba(0,0,0,.65) inset,0 22px 70px rgba(0,0,0,.48);overflow:hidden}
+  .plinko-stage{position:relative;height:100%;display:flex;flex-direction:column;min-height:0}
+  .plinko-stage::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(1200px 620px at 20% 10%, rgba(0,234,255,.10), transparent 60%),radial-gradient(900px 520px at 80% 35%, rgba(168,85,255,.10), transparent 55%);opacity:.9}
+  .plinko-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.24);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+  .plinko-title{font:1000 14px/1 "Space Grotesk",system-ui,Segoe UI,Roboto,Arial;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.92)}
   .plinko-meta{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .plinko-pill{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);box-shadow:0 0 0 1px rgba(0,234,255,.08) inset}
-  .plinko-pill span{font:800 12px/1 system-ui,Segoe UI,Roboto,Arial;letter-spacing:.10em;text-transform:uppercase;color:rgba(255,255,255,.70)}
-  .plinko-pill b{font:1000 13px/1 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;color:#00ff88;text-shadow:0 0 18px rgba(0,255,136,.20)}
-  .plinko-stage{position:relative;height:100%;display:flex;flex-direction:column;min-height:0}
-  .plinko-board{position:relative;flex:1 1 auto;min-height:0;background:linear-gradient(180deg,rgba(20,34,56,.55),rgba(10,14,24,.55));}
-  .plinko-board:before{content:"";position:absolute;inset:-2px;background:radial-gradient(900px 520px at 50% 10%, rgba(0,234,255,.10), rgba(0,0,0,0) 62%);pointer-events:none}
+  .plinko-pill span{font:900 11px/1 system-ui,Segoe UI,Roboto,Arial;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.70)}
+  .plinko-pill b{font:1000 13px/1 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;color:#00ff88;text-shadow:0 0 20px rgba(0,255,136,.22)}
+  .plinko-board{position:relative;flex:1 1 auto;min-height:0;background:linear-gradient(180deg,rgba(10,34,22,.66),rgba(7,16,22,.42));}
+  .plinko-board:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(900px 520px at 50% 10%, rgba(0,234,255,.10), rgba(0,0,0,0) 62%),radial-gradient(900px 560px at 50% 100%, rgba(34,197,94,.12), rgba(0,0,0,0) 60%);opacity:.95}
+  .plinko-board:after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.06;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E")}
   .plinko-canvas{width:100%;height:100%;display:block}
   .plinko-controls{min-height:0;display:flex;flex-direction:column}
   .plinko-controls .plinko-panel{overflow:auto;min-height:0}
+  .plinko-panel{padding:12px 14px;display:flex;flex-direction:column;gap:12px}
   .plinko-toastText{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:14px;background:rgba(0,0,0,.26);border:1px solid rgba(255,255,255,.10);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
   .plinko-toastText .big{font:1000 16px/1 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;color:rgba(255,255,255,.95)}
   .plinko-toastText .sub{font:700 12px/1.2 system-ui,Segoe UI,Roboto,Arial;color:rgba(255,255,255,.70)}
-  .plinko-panel{padding:12px 14px;display:flex;flex-direction:column;gap:12px}
-  .plinko-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
-  .plinko-label{font:900 12px/1 system-ui,Segoe UI,Roboto,Arial;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.70)}
+  .plinko-label{font:900 11px/1 system-ui,Segoe UI,Roboto,Arial;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.70)}
   .plinko-status{font:1000 12px/1 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;padding:8px 10px;border-radius:999px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.10);color:rgba(255,255,255,.88)}
   .plinko-status.run{color:#00eaff;border-color:rgba(0,234,255,.28);box-shadow:0 0 18px rgba(0,234,255,.10)}
   .plinko-status.win{color:#00ff88;border-color:rgba(0,255,136,.24);box-shadow:0 0 18px rgba(0,255,136,.10)}
   .plinko-status.lose{color:#ff3b3b;border-color:rgba(255,59,59,.24);box-shadow:0 0 18px rgba(255,59,59,.10)}
-  .plinko-input{width:100%;height:44px;border-radius:14px;padding:0 14px;background:rgba(0,0,0,.32);border:1px solid rgba(255,255,255,.10);outline:none;color:rgba(255,255,255,.92);font:1000 14px/1 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+  .plinko-input{width:100%;height:44px;border-radius:14px;padding:0 14px;background:rgba(0,0,0,.30);border:1px solid rgba(255,255,255,.10);outline:none;color:rgba(255,255,255,.92);font:1000 14px/1 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
   .plinko-input:focus{border-color:rgba(0,234,255,.35);box-shadow:0 0 0 3px rgba(0,234,255,.12)}
   .plinko-btnRow{display:flex;gap:10px}
   .plinko-btn{flex:1;height:46px;border-radius:14px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.06);color:rgba(255,255,255,.92);font:1000 14px/1 system-ui,Segoe UI,Roboto,Arial;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,border-color .12s ease,opacity .12s ease}
@@ -36,7 +37,7 @@
   .plinko-hint{font:700 12px/1.35 system-ui,Segoe UI,Roboto,Arial;color:rgba(255,255,255,.70);min-height:18px}
   .plinko-seedRow{display:flex;gap:10px;align-items:center}
   .plinko-seedRow .plinko-input{flex:1 1 auto}
-  .plinko-smallBtn{height:44px;border-radius:14px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.06);color:rgba(255,255,255,.92);font:900 12px/1 system-ui,Segoe UI,Roboto,Arial;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;white-space:nowrap;padding:0 12px}
+  .plinko-smallBtn{height:44px;border-radius:14px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.06);color:rgba(255,255,255,.92);font:900 11px/1 system-ui,Segoe UI,Roboto,Arial;letter-spacing:.10em;text-transform:uppercase;cursor:pointer;white-space:nowrap;padding:0 12px}
   .plinko-smallBtn:hover{border-color:rgba(0,234,255,.25);box-shadow:0 0 18px rgba(0,234,255,.10)}
   .plinko-history{display:flex;flex-wrap:wrap;gap:8px}
   .plinko-chip{padding:8px 10px;border-radius:999px;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.10);font:1000 12px/1 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;color:rgba(255,255,255,.90)}
@@ -478,6 +479,25 @@
       return clamp(center + offset, 0, slotsCount - 1);
     }
 
+    function wallXAtY(wall, y) {
+      if (!wall) return 0;
+      const denom = wall.y2 - wall.y1;
+      if (Math.abs(denom) < 0.0001) return wall.x1;
+      const t = clamp((y - wall.y1) / denom, 0, 1);
+      return wall.x1 + (wall.x2 - wall.x1) * t;
+    }
+
+    function triangleRangeAtY(y, margin) {
+      if (!triangle) return null;
+      const leftX = wallXAtY(triangle.left, y);
+      const rightX = wallXAtY(triangle.right, y);
+      const m = Math.max(0, Number(margin) || 0);
+      const minX = Math.min(leftX, rightX) + m;
+      const maxX = Math.max(leftX, rightX) - m;
+      if (!(maxX > minX)) return null;
+      return { minX, maxX };
+    }
+
     function spawnBall(seed, nonceValue) {
       const w = canvas.width;
       const padTop = Math.floor(26 * dpr);
@@ -485,9 +505,11 @@
       const r = Math.max(6 * dpr, Math.min(10 * dpr, slotW * 0.16));
       // Stake-like: drop near the center with a small variance.
       const rng = makeRngFromSeed(`${seed}::spawn::${nonceValue}`);
-      const x = w / 2 + (rng() - 0.5) * slotW * 0.55;
-      const y = padTop + 10 * dpr;
-      const vx = (rng() - 0.5) * 44 * dpr;
+      const y = triangle ? (triangle.apex.y + Math.max(8 * dpr, r * 0.65)) : (padTop + 10 * dpr);
+      const range = triangleRangeAtY(y, r * 1.05);
+      const x0 = w / 2 + (rng() - 0.5) * slotW * 0.55;
+      const x = range ? clamp(x0, range.minX, range.maxX) : x0;
+      const vx = (rng() - 0.5) * 34 * dpr;
       const vy = 0;
       const targetSlot = computeTargetSlot(seed, nonceValue);
       return { x, y, vx, vy, r, bet: 0, inSlot: false, slotIdx: 0, spawnAt: performance.now(), enterAt: 0, settle: 0, targetSlot, nonce: nonceValue, seedUsed: seed };
@@ -549,14 +571,7 @@
     function collideSideWalls(ball) {
       if (!triangle || ball.inSlot) return;
       // Only apply while within the pyramid vertical range (plus a small slack).
-      if (ball.y < triangle.apex.y - 14 * dpr || ball.y > triangle.bottomY + 10 * dpr) return;
-
-      function wallXAtY(wall, y) {
-        const denom = wall.y2 - wall.y1;
-        if (Math.abs(denom) < 0.0001) return wall.x1;
-        const t = clamp((y - wall.y1) / denom, 0, 1);
-        return wall.x1 + (wall.x2 - wall.x1) * t;
-      }
+      if (ball.y < triangle.apex.y - 90 * dpr || ball.y > triangle.bottomY + 10 * dpr) return;
 
         function resolveWall(wall) {
           const xOn = wallXAtY(wall, ball.y);
@@ -586,7 +601,7 @@
           ball.vx *= 0.99;
           ball.vy *= 0.997;
           const rrng = makeRngFromSeed(`${ball.seedUsed}::wall::${ball.nonce}::${wall.side}::${Math.floor(ball.y)}`);
-          ball.vx += (rrng() - 0.5) * 3.5 * dpr;
+          ball.vx += (rrng() - 0.5) * 4.8 * dpr;
         }
 
       resolveWall(triangle.left);
@@ -783,21 +798,50 @@
       const h = canvas.height;
       ctx.clearRect(0, 0, w, h);
 
-      // Background
+      // Subtle in-canvas vignette (board has CSS felt background; this adds depth).
       ctx.save();
-      ctx.fillStyle = "rgba(10,14,24,0.0)";
+      const vg = ctx.createRadialGradient(w * 0.5, h * 0.25, Math.max(10, w * 0.05), w * 0.5, h * 0.55, Math.max(w, h) * 0.85);
+      vg.addColorStop(0, "rgba(0,0,0,0.00)");
+      vg.addColorStop(1, "rgba(0,0,0,0.40)");
+      ctx.fillStyle = vg;
       ctx.fillRect(0, 0, w, h);
       ctx.restore();
 
-      // Pegs: white dots
+      // Pyramid rails (thin, classy).
+      if (triangle) {
+        ctx.save();
+        ctx.lineWidth = 2 * dpr;
+        ctx.strokeStyle = "rgba(255,255,255,0.10)";
+        ctx.shadowColor = "rgba(0,234,255,0.12)";
+        ctx.shadowBlur = 18 * dpr;
+        ctx.beginPath();
+        ctx.moveTo(triangle.apex.x, triangle.apex.y);
+        ctx.lineTo(triangle.left.x2, triangle.left.y2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(triangle.apex.x, triangle.apex.y);
+        ctx.lineTo(triangle.right.x2, triangle.right.y2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Pegs: metallic pins with glow
       ctx.save();
-      ctx.fillStyle = "rgba(255,255,255,0.92)";
-      ctx.shadowColor = "rgba(255,255,255,0.22)";
-      ctx.shadowBlur = 10 * dpr;
       for (const p of pegs) {
+        const g = ctx.createRadialGradient(p.x - p.r * 0.35, p.y - p.r * 0.35, Math.max(1, p.r * 0.2), p.x, p.y, Math.max(1, p.r * 1.25));
+        g.addColorStop(0, "rgba(255,255,255,0.98)");
+        g.addColorStop(0.45, "rgba(255,255,255,0.72)");
+        g.addColorStop(1, "rgba(210,220,240,0.18)");
+        ctx.fillStyle = g;
+        ctx.shadowColor = "rgba(255,255,255,0.18)";
+        ctx.shadowBlur = 12 * dpr;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
         ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = "rgba(0,0,0,0.30)";
+        ctx.lineWidth = 1.5 * dpr;
+        ctx.stroke();
       }
       ctx.restore();
 
@@ -810,12 +854,17 @@
           ctx.save();
           ctx.beginPath();
           ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-          ctx.fillStyle = "rgba(255, 40, 70, 0.98)";
-          ctx.shadowColor = "rgba(255, 40, 70, 0.55)";
-          ctx.shadowBlur = 24 * dpr;
+          const bg = ctx.createRadialGradient(ball.x - ball.r * 0.35, ball.y - ball.r * 0.35, Math.max(1, ball.r * 0.2), ball.x, ball.y, Math.max(1, ball.r * 1.35));
+          bg.addColorStop(0, "rgba(255,255,255,0.92)");
+          bg.addColorStop(0.18, "rgba(255,140,170,0.92)");
+          bg.addColorStop(0.62, "rgba(255, 40, 70, 0.98)");
+          bg.addColorStop(1, "rgba(70, 0, 20, 0.95)");
+          ctx.fillStyle = bg;
+          ctx.shadowColor = "rgba(255, 40, 70, 0.45)";
+          ctx.shadowBlur = 28 * dpr;
           ctx.fill();
           ctx.shadowBlur = 0;
-          ctx.strokeStyle = "rgba(255,255,255,0.12)";
+          ctx.strokeStyle = "rgba(255,255,255,0.18)";
           ctx.lineWidth = 2 * dpr;
           ctx.stroke();
           ctx.restore();
@@ -837,7 +886,15 @@
         // Box
         ctx.shadowColor = hi ? "rgba(0,255,136,0.35)" : col.glow;
         ctx.shadowBlur = (hi ? 26 : 18) * dpr;
-        ctx.fillStyle = hi ? "rgba(0,255,136,0.92)" : col.fill;
+        const gx = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
+        if (hi) {
+          gx.addColorStop(0, "rgba(0,255,136,0.98)");
+          gx.addColorStop(1, "rgba(0,255,136,0.62)");
+        } else {
+          gx.addColorStop(0, col.fill);
+          gx.addColorStop(1, col.fill.replace("0.92", "0.70"));
+        }
+        ctx.fillStyle = gx;
         const rr = 8 * dpr;
         roundRect(ctx, r.x + 2 * dpr, r.y + 2 * dpr, r.w - 4 * dpr, r.h - 4 * dpr, rr);
         ctx.fill();
@@ -845,6 +902,14 @@
         ctx.strokeStyle = "rgba(0,0,0,0.35)";
         ctx.lineWidth = 2 * dpr;
         ctx.stroke();
+
+        // Top highlight
+        ctx.save();
+        ctx.globalAlpha = 0.18;
+        ctx.fillStyle = "rgba(255,255,255,1)";
+        roundRect(ctx, r.x + 5 * dpr, r.y + 5 * dpr, r.w - 10 * dpr, Math.max(3 * dpr, r.h * 0.16), rr);
+        ctx.fill();
+        ctx.restore();
 
         // Text (cleaner + subtle outline)
         const txt = `x${m >= 10 ? m.toFixed(0) : m.toFixed(1)}`;
