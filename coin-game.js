@@ -125,24 +125,26 @@
 
     async function animate(outcome) {
       // Web Animations API for smooth toss: arc in Y and pop in Z to sell 3D.
-      const duration = 1500 + Math.floor(rand01() * 300);
-      const driftX = (rand01() * 48 - 24);
-      const popZ = 80 + Math.floor(rand01() * 80);
+      const duration = 1650 + Math.floor(rand01() * 260);
+      const driftX = (rand01() * 36 - 18);
+      const popZ = 55 + Math.floor(rand01() * 55);
 
       const endX = outcome === "edge" ? 90 : 0;
       const endY = outcome === "tails" ? 180 : outcome === "edge" ? (rand01() < 0.5 ? 0 : 180) : 0;
-      const spins = 10 + Math.floor(rand01() * 6);
-      const wob = (rand01() * 18 - 9);
+      const spins = 11 + Math.floor(rand01() * 5);
+      const wob = (rand01() * 12 - 6);
+      const wob2 = (rand01() * 8 - 4);
 
       coin.classList.add("spinning");
 
       const wrapAnim = coinWrap.animate(
         [
           { transform: "translate3d(0,0,0)", offset: 0 },
-          { transform: `translate3d(${driftX}px, -220px, ${popZ}px)`, offset: 0.28 },
-          { transform: `translate3d(${driftX * 0.18}px, 0, 18px)`, offset: 0.86 },
-          { transform: `translate3d(${driftX * 0.18}px, -14px, 8px)`, offset: 0.93 },
-          { transform: `translate3d(${driftX * 0.18}px, 0, 0)`, offset: 1 },
+          { transform: `translate3d(${driftX * 0.75}px, -110px, ${popZ}px)`, offset: 0.20 },
+          { transform: `translate3d(${driftX}px, -230px, ${popZ * 0.85}px)`, offset: 0.32 },
+          { transform: `translate3d(${driftX * 0.30}px, -24px, 16px)`, offset: 0.82 },
+          { transform: `translate3d(${driftX * 0.22}px, 0, 6px)`, offset: 0.92 },
+          { transform: `translate3d(${driftX * 0.22}px, 0, 0)`, offset: 1 },
         ],
         { duration, easing: "cubic-bezier(.18,.82,.18,1)", fill: "forwards" },
       );
@@ -161,8 +163,8 @@
       const coinAnim = coin.animate(
         [
           { transform: "rotateX(12deg) rotateY(12deg) rotateZ(0deg)", offset: 0 },
-          { transform: `rotateX(${spins * 360}deg) rotateY(${720 + wob * 2}deg) rotateZ(${wob * 0.35}deg)`, offset: 0.72 },
-          { transform: `rotateX(${endX + 16}deg) rotateY(${endY + 10}deg) rotateZ(${wob * 0.12}deg)`, offset: 0.90 },
+          { transform: `rotateX(${spins * 360}deg) rotateY(${720 + wob}deg) rotateZ(${wob2}deg)`, offset: 0.70 },
+          { transform: `rotateX(${endX + 12}deg) rotateY(${endY + 8}deg) rotateZ(${wob2 * 0.25}deg)`, offset: 0.90 },
           { transform: `rotateX(${endX}deg) rotateY(${endY}deg) rotateZ(0deg)`, offset: 1 },
         ],
         { duration, easing: "cubic-bezier(.16,.82,.2,1)", fill: "forwards" },
@@ -248,4 +250,3 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 })();
-

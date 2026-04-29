@@ -4,15 +4,15 @@
   .plinko-root{height:100%;display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;align-items:stretch}
   .plinko-card{border-radius:18px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);box-shadow:0 0 0 1px rgba(0,0,0,.65) inset,0 22px 70px rgba(0,0,0,.48);overflow:hidden}
   .plinko-stage{position:relative;height:100%;display:flex;flex-direction:column;min-height:0}
-  .plinko-stage::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(1200px 620px at 20% 10%, rgba(0,234,255,.10), transparent 60%),radial-gradient(900px 520px at 80% 35%, rgba(168,85,255,.10), transparent 55%);opacity:.9}
+  .plinko-stage::before{content:"";position:absolute;inset:-20%;pointer-events:none;background:radial-gradient(1200px 620px at 20% 10%, rgba(0,234,255,.18), transparent 60%),radial-gradient(900px 520px at 80% 35%, rgba(168,85,255,.18), transparent 55%),radial-gradient(1000px 720px at 40% 100%, rgba(255,209,102,.10), transparent 62%);opacity:.95;filter:blur(18px)}
   .plinko-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.24);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
   .plinko-title{font:1000 14px/1 "Space Grotesk",system-ui,Segoe UI,Roboto,Arial;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.92)}
   .plinko-meta{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .plinko-pill{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);box-shadow:0 0 0 1px rgba(0,234,255,.08) inset}
   .plinko-pill span{font:900 11px/1 system-ui,Segoe UI,Roboto,Arial;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.70)}
   .plinko-pill b{font:1000 13px/1 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;color:#00ff88;text-shadow:0 0 20px rgba(0,255,136,.22)}
-  .plinko-board{position:relative;flex:1 1 auto;min-height:0;background:linear-gradient(180deg,rgba(10,34,22,.66),rgba(7,16,22,.42));}
-  .plinko-board:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(900px 520px at 50% 10%, rgba(0,234,255,.10), rgba(0,0,0,0) 62%),radial-gradient(900px 560px at 50% 100%, rgba(34,197,94,.12), rgba(0,0,0,0) 60%);opacity:.95}
+  .plinko-board{position:relative;flex:1 1 auto;min-height:0;background:linear-gradient(180deg,rgba(14,44,32,.78),rgba(7,16,22,.44));}
+  .plinko-board:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(900px 520px at 50% 10%, rgba(0,234,255,.16), rgba(0,0,0,0) 62%),radial-gradient(900px 560px at 50% 100%, rgba(34,197,94,.14), rgba(0,0,0,0) 60%),linear-gradient(90deg, rgba(168,85,255,.06), rgba(0,234,255,.04));opacity:.98}
   .plinko-board:after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.06;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E")}
   .plinko-canvas{width:100%;height:100%;display:block}
   .plinko-controls{min-height:0;display:flex;flex-direction:column}
@@ -127,10 +127,11 @@
   function multipliersLikeScreenshot(slotCount) {
     // Edge-rare layout: huge on edges, tiny in the center.
     // Middle has very small multipliers (0.1 / 0.5 / 0.8...), edges go up to 100/1000.
-    const base17 = [1000, 100, 25, 10, 5, 2, 0.8, 0.5, 0.1, 0.5, 0.8, 2, 5, 10, 25, 100, 1000];
-    const base15 = [100, 25, 10, 5, 2, 0.8, 0.5, 0.1, 0.5, 0.8, 2, 5, 10, 25, 100];
-    const base13 = [25, 10, 5, 2, 0.8, 0.5, 0.1, 0.5, 0.8, 2, 5, 10, 25];
-    const base11 = [10, 5, 2, 0.8, 0.5, 0.1, 0.5, 0.8, 2, 5, 10];
+    // Tuned to be less "almost always profit": center is punishing, edges are huge but extremely rare.
+    const base17 = [1000, 130, 20, 8, 3, 1.6, 0.7, 0.3, 0.1, 0.3, 0.7, 1.6, 3, 8, 20, 130, 1000];
+    const base15 = [130, 20, 8, 3, 1.6, 0.7, 0.3, 0.1, 0.3, 0.7, 1.6, 3, 8, 20, 130];
+    const base13 = [20, 8, 3, 1.6, 0.7, 0.3, 0.1, 0.3, 0.7, 1.6, 3, 8, 20];
+    const base11 = [8, 3, 1.6, 0.7, 0.3, 0.1, 0.3, 0.7, 1.6, 3, 8];
     if (slotCount === 17) return base17;
     if (slotCount === 15) return base15;
     if (slotCount === 13) return base13;
@@ -732,16 +733,17 @@
     }
 
     function slotColor(m) {
-      // Premium palette: tiny multipliers = cool cyan, mids = violet, highs = gold/red.
-      if (m >= 1000) return { fill: "rgba(255, 30, 90, 0.92)", glow: "rgba(255, 30, 90, 0.38)" };
-      if (m >= 100) return { fill: "rgba(255, 80, 40, 0.92)", glow: "rgba(255, 80, 40, 0.34)" };
-      if (m >= 25) return { fill: "rgba(255, 130, 30, 0.92)", glow: "rgba(255, 130, 30, 0.28)" };
-      if (m >= 10) return { fill: "rgba(255, 175, 30, 0.92)", glow: "rgba(255, 175, 30, 0.24)" };
-      if (m >= 5) return { fill: "rgba(255, 209, 102, 0.92)", glow: "rgba(255, 209, 102, 0.22)" };
-      if (m >= 2) return { fill: "rgba(168, 85, 255, 0.92)", glow: "rgba(168, 85, 255, 0.22)" };
-      if (m >= 1) return { fill: "rgba(0, 234, 255, 0.90)", glow: "rgba(0, 234, 255, 0.20)" };
-      if (m >= 0.5) return { fill: "rgba(0, 170, 255, 0.90)", glow: "rgba(0, 170, 255, 0.18)" };
-      return { fill: "rgba(0, 120, 255, 0.88)", glow: "rgba(0, 120, 255, 0.16)" };
+      // Bright neon palette: tiny multipliers = electric blue, mids = violet/gold, highs = hot red.
+      if (m >= 1000) return { fill: "rgba(255, 0, 90, 0.98)", glow: "rgba(255, 0, 90, 0.55)" };
+      if (m >= 130) return { fill: "rgba(255, 40, 40, 0.98)", glow: "rgba(255, 40, 40, 0.48)" };
+      if (m >= 20) return { fill: "rgba(255, 120, 20, 0.98)", glow: "rgba(255, 120, 20, 0.42)" };
+      if (m >= 8) return { fill: "rgba(255, 190, 20, 0.98)", glow: "rgba(255, 190, 20, 0.36)" };
+      if (m >= 3) return { fill: "rgba(255, 209, 102, 0.98)", glow: "rgba(255, 209, 102, 0.34)" };
+      if (m >= 1.6) return { fill: "rgba(168, 85, 255, 0.98)", glow: "rgba(168, 85, 255, 0.34)" };
+      if (m >= 1) return { fill: "rgba(0, 234, 255, 0.98)", glow: "rgba(0, 234, 255, 0.30)" };
+      if (m >= 0.7) return { fill: "rgba(0, 200, 255, 0.96)", glow: "rgba(0, 200, 255, 0.26)" };
+      if (m >= 0.3) return { fill: "rgba(0, 150, 255, 0.94)", glow: "rgba(0, 150, 255, 0.22)" };
+      return { fill: "rgba(0, 110, 255, 0.92)", glow: "rgba(0, 110, 255, 0.20)" };
     }
 
     function draw() {
