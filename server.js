@@ -7,13 +7,9 @@ const APP_PORT = Number(process.env.APP_PORT || 3000);
 const app = express();
 app.disable("x-powered-by");
 
-// SPA-ish route for Battle Royale 3D (served from site.html, mounted without reload via History API).
-app.get("/game", (_req, res) => {
-  res.sendFile(require("path").join(__dirname, "site.html"));
-});
-
-app.get("/game/*", (_req, res) => {
-  res.sendFile(require("path").join(__dirname, "site.html"));
+// Friendly route aliases (static files are still served via express.static).
+app.get("/coin", (_req, res) => {
+  res.sendFile(require("path").join(__dirname, "coin.html"));
 });
 
 app.get("/supabase-config.js", (_req, res) => {

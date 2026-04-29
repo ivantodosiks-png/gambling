@@ -1276,6 +1276,7 @@ By clicking Accept, you confirm you understand this.
     qs("tab_blackjackView").addEventListener("click", () => handleViewRequest("blackjackView"));
     qs("tab_crashView")?.addEventListener("click", () => handleViewRequest("crashView"));
     qs("tab_plinkoView")?.addEventListener("click", () => handleViewRequest("plinkoView"));
+    qs("tab_coinFlip")?.addEventListener("click", () => (window.location.href = "./coin.html"));
     await handleViewRequest("rouletteView");
 
     // Roulette UI
