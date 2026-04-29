@@ -7,6 +7,15 @@ const APP_PORT = Number(process.env.APP_PORT || 3000);
 const app = express();
 app.disable("x-powered-by");
 
+// SPA-ish route for Battle Royale 3D (served from site.html, mounted without reload via History API).
+app.get("/game", (_req, res) => {
+  res.sendFile(require("path").join(__dirname, "site.html"));
+});
+
+app.get("/game/*", (_req, res) => {
+  res.sendFile(require("path").join(__dirname, "site.html"));
+});
+
 app.get("/supabase-config.js", (_req, res) => {
   const url = process.env.SUPABASE_URL || "";
   const anonKey = process.env.SUPABASE_ANON_KEY || "";
@@ -29,4 +38,3 @@ app.use(express.static(__dirname));
 app.listen(APP_PORT, () => {
   console.log(`Dev server: http://localhost:${APP_PORT}`);
 });
-
