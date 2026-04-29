@@ -120,8 +120,9 @@ const Animator = (() => {
     // acceleration -> spin -> slowdown -> settle, using Web Animations API.
     const spins = 9 + Math.floor(rand01() * 7); // 9..15
     const wobble = (rand01() * 18 - 9); // deg
-    const driftX = (rand01() * 36 - 18); // px
+    const driftX = (rand01() * 44 - 22); // px
     const driftZ = (rand01() * 16 - 8); // deg
+    const popZ = 90 + Math.floor(rand01() * 70); // px (towards camera)
 
     const end = finalTransform(outcome);
     const duration = 1380 + Math.floor(rand01() * 360); // 1380..1740ms
@@ -129,9 +130,9 @@ const Animator = (() => {
     const wrapAnim = coinWrap.animate(
       [
         { transform: "translate3d(0,0,0)", offset: 0 },
-        { transform: `translate3d(${driftX}px, -150px, 0)`, offset: 0.28 },
-        { transform: `translate3d(${driftX * 0.18}px, 0, 0)`, offset: 0.86 },
-        { transform: `translate3d(${driftX * 0.18}px, -12px, 0)`, offset: 0.93 },
+        { transform: `translate3d(${driftX}px, -220px, ${popZ}px)`, offset: 0.28 },
+        { transform: `translate3d(${driftX * 0.18}px, 0, 18px)`, offset: 0.86 },
+        { transform: `translate3d(${driftX * 0.18}px, -14px, 8px)`, offset: 0.93 },
         { transform: `translate3d(${driftX * 0.18}px, 0, 0)`, offset: 1 },
       ],
       { duration, easing: "cubic-bezier(.18,.82,.18,1)", fill: "forwards" },
@@ -140,7 +141,7 @@ const Animator = (() => {
     const shadowAnim = shadow.animate(
       [
         { transform: "translateX(-50%) scale(1)", opacity: 0.62, offset: 0 },
-        { transform: "translateX(-50%) scale(0.50)", opacity: 0.28, offset: 0.28 },
+        { transform: "translateX(-50%) scale(0.42)", opacity: 0.22, offset: 0.28 },
         { transform: "translateX(-50%) scale(1.03)", opacity: 0.62, offset: 0.86 },
         { transform: "translateX(-50%) scale(0.92)", opacity: 0.55, offset: 0.93 },
         { transform: "translateX(-50%) scale(1)", opacity: 0.62, offset: 1 },
@@ -153,7 +154,8 @@ const Animator = (() => {
       [
         { transform: "rotateX(12deg) rotateY(12deg) rotateZ(0deg)", offset: 0 },
         {
-          transform: `rotateX(${spins * 360}deg) rotateY(${360 + wobble}deg) rotateZ(${driftZ + wobble * 0.25}deg)`,
+          // Mostly flip around X (like a real coin toss), with slight precession.
+          transform: `rotateX(${spins * 360}deg) rotateY(${720 + wobble * 2}deg) rotateZ(${driftZ + wobble * 0.35}deg)`,
           offset: 0.72,
         },
         {
