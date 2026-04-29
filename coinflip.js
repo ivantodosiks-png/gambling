@@ -33,7 +33,7 @@
   };
 
   const init = () => {
-    const openBtn = qs("coinFlipBtn");
+    const openBtn = qs("coinFlipBtn") || qs("tab_coinFlip");
     const overlay = qs("coinFlipOverlay");
     const closeBtn = qs("cfCloseBtn");
     const pickHeads = qs("cfPickHeads");
@@ -88,8 +88,10 @@
       setMsg(msg, "Tossing...", "");
 
       const outcome = pickOutcome(); // heads | tails | edge
-      const spins = 7 + Math.floor(rand01() * 5); // 7..11
-      const wobble = (rand01() * 18 - 9).toFixed(2) + "deg";
+      const spins = 8 + Math.floor(rand01() * 6); // 8..13
+      const wobble = (rand01() * 22 - 11).toFixed(2) + "deg";
+      const driftX = (rand01() * 26 - 13).toFixed(1) + "px";
+      const driftZ = (rand01() * 18 - 9).toFixed(2) + "deg";
 
       let finalX = "0deg";
       let finalY = "0deg";
@@ -103,6 +105,8 @@
       coin.style.setProperty("--cf-final-x", finalX);
       coin.style.setProperty("--cf-final-y", finalY);
       coin.style.setProperty("--cf-wobble", wobble);
+      coin.style.setProperty("--cf-drift-x", driftX);
+      coin.style.setProperty("--cf-drift-z", driftZ);
 
       coinWrap.classList.remove("toss");
       coin.classList.remove("spin");
@@ -147,4 +151,3 @@
     init();
   }
 })();
-

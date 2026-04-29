@@ -497,13 +497,15 @@ body.cf-lock { overflow: hidden; }
   height: 160px;
   display: grid;
   place-items: center;
-  transform: translateY(0);
+  transform: translate3d(0, 0, 0);
 }
 .cf-coin-wrap.toss { animation: cf_toss_wrap 1200ms cubic-bezier(.2,.8,.2,1) forwards; }
 @keyframes cf_toss_wrap {
-  0% { transform: translateY(0); }
-  30% { transform: translateY(-110px); }
-  100% { transform: translateY(0); }
+  0% { transform: translate3d(0, 0, 0); }
+  30% { transform: translate3d(var(--cf-drift-x, 0px), -120px, 0); }
+  85% { transform: translate3d(calc(var(--cf-drift-x, 0px) * 0.2), 0, 0); }
+  93% { transform: translate3d(calc(var(--cf-drift-x, 0px) * 0.2), -10px, 0); }
+  100% { transform: translate3d(calc(var(--cf-drift-x, 0px) * 0.2), 0, 0); }
 }
 
 .cf-shadow {
@@ -520,7 +522,9 @@ body.cf-lock { overflow: hidden; }
 .cf-coin-wrap.toss .cf-shadow { animation: cf_shadow 1200ms cubic-bezier(.2,.8,.2,1) forwards; }
 @keyframes cf_shadow {
   0% { transform: translateX(-50%) scale(1); opacity: 0.60; }
-  30% { transform: translateX(-50%) scale(0.55); opacity: 0.35; }
+  30% { transform: translateX(-50%) scale(0.52); opacity: 0.30; }
+  85% { transform: translateX(-50%) scale(1.02); opacity: 0.62; }
+  93% { transform: translateX(-50%) scale(0.94); opacity: 0.55; }
   100% { transform: translateX(-50%) scale(1); opacity: 0.60; }
 }
 
@@ -529,6 +533,8 @@ body.cf-lock { overflow: hidden; }
   --cf-final-x: 0deg;
   --cf-final-y: 0deg;
   --cf-wobble: 0deg;
+  --cf-drift-x: 0px;
+  --cf-drift-z: 0deg;
 
   position: relative;
   width: 120px;
@@ -540,8 +546,34 @@ body.cf-lock { overflow: hidden; }
 .cf-coin.spin { animation: cf_spin 1200ms cubic-bezier(.16,.8,.2,1) forwards; }
 @keyframes cf_spin {
   0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
-  70% { transform: rotateX(calc(var(--cf-spin-turns) * 360deg)) rotateY(calc(1turn + var(--cf-wobble))) rotateZ(calc(var(--cf-wobble) * 0.35)); }
+  70% {
+    transform:
+      rotateX(calc(var(--cf-spin-turns) * 360deg))
+      rotateY(calc(1turn + var(--cf-wobble)))
+      rotateZ(calc(var(--cf-drift-z) + (var(--cf-wobble) * 0.25)));
+  }
+  88% {
+    transform:
+      rotateX(calc(var(--cf-final-x) + 18deg))
+      rotateY(calc(var(--cf-final-y) + 10deg))
+      rotateZ(calc(var(--cf-drift-z) * 0.35));
+  }
   100% { transform: rotateX(var(--cf-final-x)) rotateY(var(--cf-final-y)) rotateZ(0deg); }
+}
+
+.cf-coin::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 999px;
+  background:
+    radial-gradient(120px 120px at 30% 22%, rgba(255,255,255,0.22), rgba(255,255,255,0) 55%),
+    radial-gradient(90px 90px at 72% 76%, rgba(0,234,255,0.12), rgba(255,255,255,0) 60%),
+    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(0,0,0,0.06));
+  filter: blur(0.2px);
+  opacity: 0.7;
+  transform: translateZ(11px);
+  pointer-events: none;
 }
 
 .cf-face {

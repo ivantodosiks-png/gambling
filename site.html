@@ -25,8 +25,6 @@
             <div class="pill"><code id="userIdValue">-</code></div>
             <button id="profileBtn" class="ghost" type="button">Profile</button>
             <button id="leaderboardBtn" class="ghost" type="button">Leaderboard</button>
-            <button id="coinFlipBtn" class="ghost" type="button" title="Офлайн: орёл/решка">Монетка</button>
-            <button id="br3dNavBtn" class="ghost" type="button">Battle Royale 3D</button>
             <button id="adminBtn" class="ghost" type="button" style="visibility:hidden;">Admin</button>
             <button id="logoutBtn" type="button">Logout</button>
             <button id="claim500Btn" class="ghost" type="button" title="Claim 500 coins every 30 seconds">+500</button>
@@ -39,6 +37,7 @@
           <button id="tab_blackjackView" class="tab" type="button">Blackjack</button>
           <button id="tab_crashView" class="tab" type="button">Crash</button>
           <button id="tab_plinkoView" class="tab" type="button">Plinko</button>
+          <button id="tab_coinFlip" class="tab" type="button" title="Офлайн: орёл/решка">Монетка</button>
         </div>
       </div>
     </header>
@@ -342,14 +341,6 @@
       </div>
     </div>
 
-    <div id="br3dOverlay" class="br3d-overlay" aria-hidden="true">
-      <div class="br3d-topbar">
-        <div class="br3d-title">Battle Royale 3D</div>
-        <button id="br3dExitBtn" class="ghost" type="button">Back</button>
-      </div>
-      <div id="game-root"></div>
-    </div>
-
     <script src="/supabase-config.js"></script>
     <script src="./supabase-config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -360,6 +351,5 @@
     <script src="./site.js"></script>
     <script src="./crash.js"></script>
     <script src="./plinko-game.js"></script>
-    <script type="module" src="./game/boot.js"></script>
   </body>
 </html>
