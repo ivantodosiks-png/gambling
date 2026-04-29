@@ -125,11 +125,12 @@
   }
 
   function multipliersLikeScreenshot(slotCount) {
-    // Screenshot style: huge on edges, tiny in center (Stake-like).
-    const base17 = [1000, 130, 26, 9, 4, 2, 0.2, 0.2, 0.2, 0.2, 0.2, 2, 4, 9, 26, 130, 1000];
-    const base15 = [130, 26, 9, 4, 2, 0.2, 0.2, 0.2, 0.2, 0.2, 2, 4, 9, 26, 130];
-    const base13 = [26, 9, 4, 2, 0.2, 0.2, 0.2, 0.2, 0.2, 2, 4, 9, 26];
-    const base11 = [9, 4, 2, 0.2, 0.2, 0.2, 0.2, 0.2, 2, 4, 9];
+    // Edge-rare layout: huge on edges, tiny in the center.
+    // Middle has very small multipliers (0.1 / 0.5 / 0.8...), edges go up to 100/1000.
+    const base17 = [1000, 100, 25, 10, 5, 2, 0.8, 0.5, 0.1, 0.5, 0.8, 2, 5, 10, 25, 100, 1000];
+    const base15 = [100, 25, 10, 5, 2, 0.8, 0.5, 0.1, 0.5, 0.8, 2, 5, 10, 25, 100];
+    const base13 = [25, 10, 5, 2, 0.8, 0.5, 0.1, 0.5, 0.8, 2, 5, 10, 25];
+    const base11 = [10, 5, 2, 0.8, 0.5, 0.1, 0.5, 0.8, 2, 5, 10];
     if (slotCount === 17) return base17;
     if (slotCount === 15) return base15;
     if (slotCount === 13) return base13;
@@ -236,7 +237,7 @@
     let triangle = null; // { apex:{x,y}, bottomY, left:{...}, right:{...} }
     let highlight = -1;
 
-    let balls = []; // [{x,y,vx,vy,r,bet,inSlot,slotIdx,spawnAt,enterAt,settle,targetSlot,nonce,seedUsed}]
+    let balls = []; // [{x,y,vx,vy,r,bet,inSlot,slotIdx,spawnAt,enterAt,settle,nonce,seedUsed}]
     let raf = 0;
     let lastT = 0;
 
@@ -385,26 +386,29 @@
         });
       }
 
-      // Triangle pegs: rows = slotsCount-1, each row has r+1 pegs.
-      const rows = slotsCount - 1;
+      // Full-field pegs: no triangle/pyramid walls, fill the whole board width.
       // Wider vertical coverage: make pegs fill most of the canvas height.
       const pegAreaTop = padTop + Math.floor(12 * dpr);
       const pegAreaBottom = slotTop - Math.floor(10 * dpr);
       const pegAreaH = Math.max(140 * dpr, pegAreaBottom - pegAreaTop);
+      const rows = clamp(Math.round(pegAreaH / Math.max(10 * dpr, slotW * 0.62)), 14, 26);
       const gapY = pegAreaH / (rows + 1);
       const pegR = Math.max(2.6 * dpr, Math.min(4.4 * dpr, slotW * 0.10));
 
       pegs = [];
       pegsByRow = Array.from({ length: rows }, () => []);
       for (let r = 0; r < rows; r++) {
-        const count = r + 1;
-        const rowW = (count - 1) * slotW;
-        const startX = w / 2 - rowW / 2;
         const y = pegAreaTop + (r + 1) * gapY;
-        for (let i = 0; i < count; i++) {
-          const peg = { x: startX + i * slotW, y, r: pegR, row: r };
+        const offset = (r % 2) * (slotW * 0.5);
+        // Cover the entire board. Add 1 extra peg on each side for cleaner bounces.
+        const startX = padX - slotW + offset;
+        const endX = w - padX + slotW;
+        let col = 0;
+        for (let x = startX; x <= endX; x += slotW) {
+          const peg = { x, y, r: pegR, row: r, col };
           pegs.push(peg);
           pegsByRow[r].push(peg);
+          col += 1;
         }
       }
 
@@ -414,47 +418,8 @@
       const ballR = Math.max(5.5 * dpr, Math.min(10.5 * dpr, Math.max(pegR * 2.2, slotW * 0.14)));
       for (const b of balls) b.r = ballR;
 
-      // Build "pyramid" side walls so the ball cannot escape the triangle peg field.
-      // This also reduces bias towards extreme slots caused by sliding on outer walls.
-      if (pegs.length) {
-        let minPegX = Infinity;
-        let maxPegX = -Infinity;
-        for (const p of pegs) {
-          if (p.x < minPegX) minPegX = p.x;
-          if (p.x > maxPegX) maxPegX = p.x;
-        }
-
-        const wallMargin = Math.max(slotW * 0.60, ballR * 1.65);
-        // Stake-like triangle: apex near the first row of pegs, sides go to bottom corners.
-        const apexX = w / 2;
-        const apexY = Math.max(padTop + 4 * dpr, pegAreaTop - gapY * 0.85);
-        const bottomY = Math.max(apexY + 60 * dpr, slotTop - Math.floor(8 * dpr));
-        const leftBottomX = clamp(minPegX - wallMargin, padX + ballR, w - padX - ballR);
-        const rightBottomX = clamp(maxPegX + wallMargin, padX + ballR, w - padX - ballR);
-
-        function makeWall(x1, y1, x2, y2, side) {
-          const dx = x2 - x1;
-          const dy = y2 - y1;
-          const invLen = 1 / Math.max(0.0001, Math.hypot(dx, dy));
-          // Normal points "inward" (clockwise from the segment direction).
-          const nx = dy * invLen;
-          const ny = -dx * invLen;
-          return { x1, y1, x2, y2, nx, ny, side };
-        }
-
-        triangle = {
-          apex: { x: apexX, y: apexY },
-          bottomY,
-          slotTop,
-          slotBottom,
-          padX,
-          slotW,
-          left: makeWall(apexX, apexY, leftBottomX, bottomY, "left"),
-          right: makeWall(apexX, apexY, rightBottomX, bottomY, "right"),
-        };
-      } else {
-        triangle = null;
-      }
+      // No triangle/pyramid rails in this mode.
+      triangle = null;
     }
 
     function reset() {
@@ -466,17 +431,6 @@
       dropBtn.disabled = false;
       setBalanceUI();
       draw();
-    }
-
-    function computeTargetSlot(seed, nonceValue) {
-      // Binomial/Galton board: n = rows, p=0.5. Center is most likely.
-      const n = Math.max(1, slotsCount - 1);
-      const rng = makeRngFromSeed(`${seed}::${nonceValue}::${slotsCount}`);
-      let rights = 0;
-      for (let i = 0; i < n; i++) if (rng() < 0.5) rights++;
-      const center = Math.floor(slotsCount / 2);
-      const offset = rights - Math.floor(n / 2);
-      return clamp(center + offset, 0, slotsCount - 1);
     }
 
     function wallXAtY(wall, y) {
@@ -503,16 +457,14 @@
       const padTop = Math.floor(26 * dpr);
       const slotW = (canvas.width - Math.floor(14 * dpr) * 2) / slotsCount;
       const r = Math.max(6 * dpr, Math.min(10 * dpr, slotW * 0.16));
-      // Stake-like: drop near the center with a small variance.
+      // Drop near the center with a small variance.
       const rng = makeRngFromSeed(`${seed}::spawn::${nonceValue}`);
-      const y = triangle ? (triangle.apex.y + Math.max(8 * dpr, r * 0.65)) : (padTop + 10 * dpr);
-      const range = triangleRangeAtY(y, r * 1.05);
+      const y = padTop + 10 * dpr;
       const x0 = w / 2 + (rng() - 0.5) * slotW * 0.55;
-      const x = range ? clamp(x0, range.minX, range.maxX) : x0;
+      const x = x0;
       const vx = (rng() - 0.5) * 34 * dpr;
       const vy = 0;
-      const targetSlot = computeTargetSlot(seed, nonceValue);
-      return { x, y, vx, vy, r, bet: 0, inSlot: false, slotIdx: 0, spawnAt: performance.now(), enterAt: 0, settle: 0, targetSlot, nonce: nonceValue, seedUsed: seed };
+      return { x, y, vx, vy, r, bet: 0, inSlot: false, slotIdx: 0, spawnAt: performance.now(), enterAt: 0, settle: 0, nonce: nonceValue, seedUsed: seed };
     }
 
     function drop() {
@@ -697,18 +649,7 @@
             ball.vy += 160 * dpr * sdt;
           }
 
-          // Gentle deterministic steering towards preselected target slot after most pegs are passed.
-          // Keeps distribution binomial and guarantees a finish without obvious "magnet" behavior.
-          if (!ball.inSlot && geom) {
-            const steerStartY = geom.pegAreaTop + geom.gapY * (geom.rows * 0.70);
-            if (ball.y > steerStartY && ball.y < slotTop - 6 * dpr) {
-              const tx = padX + (ball.targetSlot + 0.5) * slotW;
-              const dx = tx - ball.x;
-              const pull = clamp(dx / (slotW * 6), -1, 1);
-              ball.vx += pull * 42 * dpr * sdt;
-              ball.vx *= 0.999;
-            }
-          }
+          // No hidden steering/magnet: outcome is purely driven by physics + tiny deterministic jitter on peg hits.
 
           // Enter slot zone
           if (!ball.inSlot && ball.y + ball.r >= slotTop) {
@@ -737,14 +678,6 @@
               if (ball.slotIdx < slotsCount - 1) ball.slotIdx += 1;
             }
 
-            // Bias inside slot zone towards preselected target slot (subtle).
-            if (Number.isFinite(ball.targetSlot) && ball.slotIdx !== ball.targetSlot) {
-              const tx = padX + (ball.targetSlot + 0.5) * slotW;
-              const dx = tx - ball.x;
-              const pull = clamp(dx / (slotW * 2.6), -1, 1);
-              ball.vx += pull * 220 * dpr * sdt;
-            }
-
             // Floor
             if (ball.y + ball.r > slotBottom) {
               ball.y = slotBottom - ball.r;
@@ -761,14 +694,15 @@
               finishBall(ball, clamp(ball.slotIdx, 0, slotsCount - 1));
             } else if (tooLong) {
               balls.splice(bi, 1);
-              finishBall(ball, clamp(Number(ball.targetSlot) || ball.slotIdx, 0, slotsCount - 1));
+              finishBall(ball, clamp(ball.slotIdx, 0, slotsCount - 1));
             }
           }
 
           // Extra safety: if something goes weird, force finish after a hard timeout.
           if (!ball.inSlot && performance.now() - (ball.spawnAt || 0) > 6500) {
             balls.splice(bi, 1);
-            finishBall(ball, clamp(Number(ball.targetSlot) || 0, 0, slotsCount - 1));
+            const idx = clamp(Math.floor((ball.x - padX) / slotW), 0, slotsCount - 1);
+            finishBall(ball, idx);
           }
 
           // Safety: fell out

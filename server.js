@@ -8,8 +8,9 @@ const app = express();
 app.disable("x-powered-by");
 
 // Friendly route aliases (static files are still served via express.static).
+// Coin is integrated into site.html as a tab; keep /coin as a convenience redirect.
 app.get("/coin", (_req, res) => {
-  res.sendFile(require("path").join(__dirname, "coin.html"));
+  res.redirect(302, "/site.html#coin");
 });
 
 app.get("/supabase-config.js", (_req, res) => {

@@ -235,6 +235,7 @@
     blackjackView: { key: "blackjack_lock", label: "Blackjack" },
     crashView: { key: "crash_lock", label: "Crash" },
     plinkoView: { key: "plinko_lock", label: "Plinko" },
+    coinView: { key: "coin_lock", label: "Coin Toss" },
   };
 
   const lockCache = new Map(); // key -> { ts, value }
@@ -472,6 +473,9 @@
     if (lock.enabled) showModeLocked(viewId, cfg.label, lock.message || "");
     else hideModeLocked(viewId);
   }
+
+  // Allow other scripts (coin-game.js) to open Coin tab from redirects/hash.
+  window.__openCoinTab = () => handleViewRequest("coinView");
   // ---- Roulette ----
   function fmtCompact(n) {
     const x = Math.floor(Number(n) || 0);
@@ -1276,7 +1280,7 @@ By clicking Accept, you confirm you understand this.
     qs("tab_blackjackView").addEventListener("click", () => handleViewRequest("blackjackView"));
     qs("tab_crashView")?.addEventListener("click", () => handleViewRequest("crashView"));
     qs("tab_plinkoView")?.addEventListener("click", () => handleViewRequest("plinkoView"));
-    qs("tab_coinFlip")?.addEventListener("click", () => (window.location.href = "./coin.html"));
+    qs("tab_coinView")?.addEventListener("click", () => handleViewRequest("coinView"));
     await handleViewRequest("rouletteView");
 
     // Roulette UI
