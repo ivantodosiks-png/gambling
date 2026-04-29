@@ -326,6 +326,13 @@ input:focus { outline: none; border-color: rgba(0,234,255,0.45); box-shadow: 0 0
   pointer-events: none;
 }
 
+/* Performance: reduce expensive blur/shadows while spinning to avoid stutter */
+.coin.spinning::after { filter: blur(10px); opacity: 0.55; }
+.coin.spinning::before { opacity: 0.55; }
+.coin.spinning .coin-face { box-shadow: 0 10px 34px rgba(0,0,0,0.34), 0 0 0 1px rgba(255,255,255,0.04) inset; }
+.coin.spinning .coin-face-inner { filter: saturate(1.02) contrast(1.02); }
+.coin.spinning + .shadow { filter: blur(1px); opacity: 0.56; }
+
 .stage-bottom {
   margin-top: 14px;
   display: grid;
@@ -374,4 +381,3 @@ input:focus { outline: none; border-color: rgba(0,234,255,0.45); box-shadow: 0 0
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
 }
-

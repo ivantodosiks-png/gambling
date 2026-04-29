@@ -101,66 +101,6 @@ async function persistRemoteBalance(userId, balance) {
 }
 
 // -----------------------------
-// Audio (optional)
-// -----------------------------
-
-const AudioFx = (() => {
-  let ctx = null;
-
-  function ensureCtx() {
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!Ctx) return null;
-    if (!ctx) ctx = new Ctx();
-    return ctx;
-  }
-
-  function beep({ type = "sine", freq = 440, gain = 0.03, ms = 90 }) {
-    const c = ensureCtx();
-    if (!c) return;
-    const o = c.createOscillator();
-    const g = c.createGain();
-    o.type = type;
-    o.frequency.value = freq;
-    g.gain.value = gain;
-    o.connect(g);
-    g.connect(c.destination);
-    o.start();
-    setTimeout(() => {
-      try {
-        o.stop();
-        o.disconnect();
-        g.disconnect();
-      } catch {}
-    }, ms);
-  }
-
-  function spinStart() {
-    // short rising “whoosh”
-    beep({ type: "triangle", freq: 220, gain: 0.018, ms: 120 });
-    setTimeout(() => beep({ type: "triangle", freq: 380, gain: 0.014, ms: 140 }), 110);
-  }
-
-  function spinTick() {
-    beep({ type: "square", freq: 880, gain: 0.012, ms: 35 });
-  }
-
-  function landOk() {
-    beep({ type: "sine", freq: 260, gain: 0.035, ms: 100 });
-  }
-
-  function landBad() {
-    beep({ type: "sine", freq: 190, gain: 0.045, ms: 130 });
-  }
-
-  function landEdge() {
-    beep({ type: "sine", freq: 520, gain: 0.05, ms: 120 });
-    setTimeout(() => beep({ type: "sine", freq: 780, gain: 0.04, ms: 110 }), 95);
-  }
-
-  return { spinStart, spinTick, landOk, landBad, landEdge };
-})();
-
-// -----------------------------
 // Coin animation
 // -----------------------------
 
@@ -175,7 +115,7 @@ const Animator = (() => {
     return { rx: 0, ry: 0, rz: 0 };
   }
 
-  async function toss({ coinWrap, coin, shadow, outcome, soundEnabled }) {
+  async function toss({ coinWrap, coin, shadow, outcome }) {
     // NOTE: We avoid CSS keyframes for the main motion so we can reliably “compose”
     // acceleration -> spin -> slowdown -> settle, using Web Animations API.
     const spins = 9 + Math.floor(rand01() * 7); // 9..15
@@ -184,7 +124,7 @@ const Animator = (() => {
     const driftZ = (rand01() * 16 - 8); // deg
 
     const end = finalTransform(outcome);
-    const duration = 1450 + Math.floor(rand01() * 420); // 1450..1870ms
+    const duration = 1380 + Math.floor(rand01() * 360); // 1380..1740ms
 
     const wrapAnim = coinWrap.animate(
       [
@@ -208,6 +148,7 @@ const Animator = (() => {
       { duration, easing: "cubic-bezier(.18,.82,.18,1)", fill: "forwards" },
     );
 
+    coin.classList.add("spinning");
     const coinAnim = coin.animate(
       [
         { transform: "rotateX(12deg) rotateY(12deg) rotateZ(0deg)", offset: 0 },
@@ -224,15 +165,8 @@ const Animator = (() => {
       { duration, easing: "cubic-bezier(.16,.82,.2,1)", fill: "forwards" },
     );
 
-    if (soundEnabled) {
-      AudioFx.spinStart();
-      // A couple of ticks during the “spin” window.
-      setTimeout(() => AudioFx.spinTick(), Math.floor(duration * 0.36));
-      setTimeout(() => AudioFx.spinTick(), Math.floor(duration * 0.52));
-      setTimeout(() => AudioFx.spinTick(), Math.floor(duration * 0.66));
-    }
-
     await Promise.all([wrapAnim.finished, coinAnim.finished, shadowAnim.finished]);
+    coin.classList.remove("spinning");
   }
 
   return { toss };
@@ -281,7 +215,6 @@ const App = (() => {
     pickEdgeBtn: qs("pickEdgeBtn"),
     tossBtn: qs("tossBtn"),
     resetBalanceBtn: qs("resetBalanceBtn"),
-    soundToggle: qs("soundToggle"),
     msg: qs("msg"),
     stageSubtitle: qs("stageSubtitle"),
     resultPill: qs("resultPill"),
@@ -332,7 +265,7 @@ const App = (() => {
     els.pickTailsBtn.classList.toggle("active", next === "tails");
     els.pickEdgeBtn.classList.toggle("active", next === "edge");
 
-    els.pickedValue.textContent = next === "heads" ? "Орёл" : next === "tails" ? "Решка" : "Ребро";
+    els.pickedValue.textContent = next === "heads" ? "Heads" : next === "tails" ? "Tails" : "Edge";
     els.payoutValue.textContent = `x${Rules.multiplierForPick(next)}`;
   }
 
@@ -349,10 +282,10 @@ const App = (() => {
     els.betValue.textContent = fmt(bet);
 
     if (bet > state.balance) {
-      els.betHint.textContent = "Ставка больше баланса.";
+      els.betHint.textContent = "Bet is larger than your balance.";
       return;
     }
-    els.betHint.textContent = `Можно поставить до ${fmt(state.balance)}.`;
+    els.betHint.textContent = `Max bet: ${fmt(state.balance)}.`;
   }
 
   function setBusy(b) {
@@ -395,9 +328,9 @@ const App = (() => {
   }
 
   function pickLabel(outcome) {
-    if (outcome === "heads") return "Орёл";
-    if (outcome === "tails") return "Решка";
-    return "Ребро";
+    if (outcome === "heads") return "Heads";
+    if (outcome === "tails") return "Tails";
+    return "Edge";
   }
 
   function updateResultPill(text, kind) {
@@ -411,19 +344,19 @@ const App = (() => {
 
     const bet = getBet();
     if (!Number.isFinite(bet) || bet <= 0) {
-      setMsg("Некорректная ставка.", "err");
-      toast("Ошибка", "Некорректная ставка.", "err");
+      setMsg("Invalid bet.", "err");
+      toast("Error", "Invalid bet.", "err");
       return;
     }
     if (bet > state.balance) {
-      setMsg("Ставка больше баланса.", "err");
-      toast("Недостаточно средств", "Уменьши ставку.", "warn");
+      setMsg("Bet is larger than your balance.", "err");
+      toast("Not enough balance", "Lower your bet.", "warn");
       return;
     }
 
     setBusy(true);
     setMsg("", "");
-    els.stageSubtitle.textContent = "Подбрасываем…";
+    els.stageSubtitle.textContent = "Tossing…";
     updateResultPill("…", "");
 
     // 1) Deduct bet immediately (like a real bet flow).
@@ -441,7 +374,6 @@ const App = (() => {
         coin: els.coin,
         shadow: els.shadow,
         outcome,
-        soundEnabled: !!els.soundToggle.checked,
       });
     } catch {
       // If animation fails, still resolve the bet logic.
@@ -455,17 +387,15 @@ const App = (() => {
     if (won) {
       setBalance(state.balance + payout);
       await persistBalanceEverywhere();
-      updateResultPill(`Результат: ${pickLabel(outcome)}`, "ok");
-      els.stageSubtitle.textContent = outcome === "edge" ? "Ребро! Это редкость." : "Победа!";
-      if (els.soundToggle.checked) (outcome === "edge" ? AudioFx.landEdge : AudioFx.landOk)();
-      setMsg(`Выигрыш: +${fmt(payout)} (x${mult})`, "ok");
-      toast("Выигрыш", `+${fmt(payout)} • Результат: ${pickLabel(outcome)}`, "ok");
+      updateResultPill(`Result: ${pickLabel(outcome)}`, "ok");
+      els.stageSubtitle.textContent = outcome === "edge" ? "Edge! That's rare." : "Win!";
+      setMsg(`Win: +${fmt(payout)} (x${mult})`, "ok");
+      toast("Win", `+${fmt(payout)} • Result: ${pickLabel(outcome)}`, "ok");
     } else {
-      updateResultPill(`Результат: ${pickLabel(outcome)}`, "err");
-      els.stageSubtitle.textContent = "Не повезло. Попробуй ещё раз.";
-      if (els.soundToggle.checked) AudioFx.landBad();
-      setMsg(`Проигрыш: -${fmt(bet)} • Выпало: ${pickLabel(outcome)}`, "err");
-      toast("Проигрыш", `-${fmt(bet)} • Выпало: ${pickLabel(outcome)}`, "err");
+      updateResultPill(`Result: ${pickLabel(outcome)}`, "err");
+      els.stageSubtitle.textContent = "Unlucky. Try again.";
+      setMsg(`Loss: -${fmt(bet)} • Landed: ${pickLabel(outcome)}`, "err");
+      toast("Loss", `-${fmt(bet)} • Landed: ${pickLabel(outcome)}`, "err");
     }
 
     // 5) Update UI summary.
@@ -505,8 +435,8 @@ const App = (() => {
       setBalance(DEFAULT_BALANCE);
       await persistBalanceEverywhere();
       syncBetUi();
-      setMsg("Локальный баланс сброшен на 1000.", "ok");
-      toast("Сброс", "Локальный баланс = 1000", "warn");
+      setMsg("Offline balance reset to 1000.", "ok");
+      toast("Reset", "Offline balance = 1000", "warn");
     });
 
     // Load auth (optional)
@@ -536,4 +466,3 @@ const App = (() => {
 })();
 
 App.boot();
-
