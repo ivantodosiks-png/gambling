@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+
+  --bg-0: 11 0 20;
+  --bg-1: 20 0 40;
+  --bg-2: 26 0 51;
+
+  --fg: 245 246 255;
+  --muted: 193 199 220;
+  --line: 255 255 255;
+
+  --primary: 168 85 255; /* violet */
+  --cyan: 0 234 255; /* electric cyan */
+  --gold: 255 209 102; /* warm gold */
+
+  --win: 0 255 136;
+  --lose: 255 59 59;
+
+  --font-sans: ui-sans-serif;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(1100px 680px at 18% 0%, rgb(var(--primary) / 0.22), transparent 60%),
+    radial-gradient(980px 640px at 90% 10%, rgb(var(--cyan) / 0.14), transparent 55%),
+    linear-gradient(180deg, rgb(var(--bg-0)), rgb(var(--bg-1)) 52%, rgb(var(--bg-2)));
+  color: rgb(var(--fg) / 0.92);
+}
+
+::selection {
+  background: rgb(var(--primary) / 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
