@@ -460,9 +460,12 @@
       // Drop near the center with a small variance.
       const rng = makeRngFromSeed(`${seed}::spawn::${nonceValue}`);
       const y = padTop + 10 * dpr;
-      const x0 = w / 2 + (rng() - 0.5) * slotW * 0.55;
+      // Add a bit of true randomness on top of seeded RNG so consecutive drops don't feel identical.
+      const jitter = (Math.random() - 0.5) * slotW * 0.38;
+      const x0 = w / 2 + (rng() - 0.5) * slotW * 0.48 + jitter;
       const x = x0;
-      const vx = (rng() - 0.5) * 34 * dpr;
+      // Keep initial horizontal velocity modest so edge multipliers stay very rare.
+      const vx = ((rng() - 0.5) * 18 + (Math.random() - 0.5) * 14) * dpr;
       const vy = 0;
       return { x, y, vx, vy, r, bet: 0, inSlot: false, slotIdx: 0, spawnAt: performance.now(), enterAt: 0, settle: 0, nonce: nonceValue, seedUsed: seed };
     }
@@ -593,6 +596,16 @@
             ball.vx = -Math.abs(ball.vx) * 0.72;
           }
 
+          // Soft side dampers: reduce edge travel without "magnet" steering.
+          if (!ball.inSlot) {
+            const sideZone = slotW * 1.6;
+            const leftDist = ball.x - padX;
+            const rightDist = (w - padX) - ball.x;
+            if (leftDist < sideZone || rightDist < sideZone) {
+              ball.vx *= 0.985;
+            }
+          }
+
           // Pyramid side walls keep the ball inside the peg field.
           collideSideWalls(ball);
 
@@ -627,7 +640,7 @@
 
                   // Deterministic micro-jitter based on seed+nonce+row+peg (not frame-rate dependent).
                   const rrng = makeRngFromSeed(`${ball.seedUsed}::jitter::${ball.nonce}::${p.row}::${i}`);
-                  ball.vx += (rrng() - 0.5) * 5.5 * dpr;
+                  ball.vx += (rrng() - 0.5) * 4.2 * dpr;
                   ball.vy += (rrng() - 0.5) * 2.0 * dpr;
                 }
               }
@@ -635,7 +648,7 @@
           }
 
           // Damping (more horizontal damping)
-          ball.vx *= ball.inSlot ? 0.985 : 0.992;
+          ball.vx *= ball.inSlot ? 0.983 : 0.988;
           ball.vy *= ball.inSlot ? 0.992 : 0.996;
 
           // Cap speed to keep the motion clean (Stake-like).
@@ -719,12 +732,16 @@
     }
 
     function slotColor(m) {
-      // Match screenshot vibe: high = magenta/red, mid = orange, low = yellow.
-      if (m >= 100) return { fill: "rgba(255, 0, 80, 0.92)", glow: "rgba(255, 0, 80, 0.35)" };
-      if (m >= 10) return { fill: "rgba(255, 90, 40, 0.92)", glow: "rgba(255, 90, 40, 0.30)" };
-      if (m >= 4) return { fill: "rgba(255, 150, 30, 0.92)", glow: "rgba(255, 150, 30, 0.24)" };
-      if (m >= 2) return { fill: "rgba(255, 200, 30, 0.92)", glow: "rgba(255, 200, 30, 0.20)" };
-      return { fill: "rgba(255, 230, 60, 0.92)", glow: "rgba(255, 230, 60, 0.18)" };
+      // Premium palette: tiny multipliers = cool cyan, mids = violet, highs = gold/red.
+      if (m >= 1000) return { fill: "rgba(255, 30, 90, 0.92)", glow: "rgba(255, 30, 90, 0.38)" };
+      if (m >= 100) return { fill: "rgba(255, 80, 40, 0.92)", glow: "rgba(255, 80, 40, 0.34)" };
+      if (m >= 25) return { fill: "rgba(255, 130, 30, 0.92)", glow: "rgba(255, 130, 30, 0.28)" };
+      if (m >= 10) return { fill: "rgba(255, 175, 30, 0.92)", glow: "rgba(255, 175, 30, 0.24)" };
+      if (m >= 5) return { fill: "rgba(255, 209, 102, 0.92)", glow: "rgba(255, 209, 102, 0.22)" };
+      if (m >= 2) return { fill: "rgba(168, 85, 255, 0.92)", glow: "rgba(168, 85, 255, 0.22)" };
+      if (m >= 1) return { fill: "rgba(0, 234, 255, 0.90)", glow: "rgba(0, 234, 255, 0.20)" };
+      if (m >= 0.5) return { fill: "rgba(0, 170, 255, 0.90)", glow: "rgba(0, 170, 255, 0.18)" };
+      return { fill: "rgba(0, 120, 255, 0.88)", glow: "rgba(0, 120, 255, 0.16)" };
     }
 
     function draw() {
@@ -826,7 +843,7 @@
           gx.addColorStop(1, "rgba(0,255,136,0.62)");
         } else {
           gx.addColorStop(0, col.fill);
-          gx.addColorStop(1, col.fill.replace("0.92", "0.70"));
+          gx.addColorStop(1, col.fill.replace("0.92", "0.70").replace("0.90", "0.68").replace("0.88", "0.66"));
         }
         ctx.fillStyle = gx;
         const rr = 8 * dpr;
